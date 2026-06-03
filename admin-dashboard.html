@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Plush Intentions Dashboard</title>
+
+<!-- ICONS -->
+<script src="https://unpkg.com/feather-icons"></script>
+
+<!-- MAPBOX -->
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+
+<!-- SUPABASE -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+
+/* BRAND COLOR */
+:root {
+  --brand: #FF4F9F;
+}
+
+/* RESET */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Inter, sans-serif;
+}
+
+/* BACKGROUND */
+body {
+  background: url('background.png') center/cover no-repeat fixed;
+  color: #fff;
+  overflow: hidden;
+}
+
+/* DARK OVERLAY */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(2px);
+  z-index: -10;
+}
+
+/* GLASS */
+.glass {
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(26px);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 22px;
+  box-shadow: 0 6px 28px rgba(0,0,0,0.22);
+}
+
+/* SIDEBAR */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 100vh;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+}
+
+/* BRAND */
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.brand-logo {
+  width: 120px;
+  height: auto;
+  margin-bottom: 10px;
+}
+
+.neon-logo {
+  filter: drop-shadow(0 0 10px var(--brand))
+          drop-shadow(0 0 20px var(--brand))
+          drop-shadow(0 0 30px var(--brand));
+}
+
+.brand-title {
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 0 6px var(--brand), 0 0 12px var(--brand);
+}
+
+/* SIDEBAR LINKS */
+.sidebar a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  text-decoration: none;
+  opacity: 0.85;
+  margin-bottom: 18px;
+  font-size: 16px;
+  cursor: pointer;
+}
+.sidebar a:hover {
+  opacity: 1;
+}
+
+.sidebar a i {
+  width: 20px;
+  height: 20px;
+}
+
+/* TOP BAR */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 240px;
+  right: 0;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  font-size: 18px;
+  z-index: 20;
+}
+
+#greeting {
+  font-size: 18px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+/* MAIN PANEL */
+.main-panel {
+  position: fixed;
+  top: 90px;
+  left: 260px;
+  right: 20px;
+  bottom: 20px;
+  padding: 0;
+  overflow: hidden;
+  z-index: 30;
+}
+
+.panel {
+  width: 100%;
+  height: 100%;
+  border-radius: 22px;
+  overflow: hidden;
+  padding: 20px;
+}
+
+/* MAP */
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* HIDDEN */
+.hidden {
+  display: none;
+}
+
+/* LOADER */
+#loader {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeOut 0.6s ease forwards;
+  animation-delay: 1.2s;
+}
+
+.loader-logo {
+  width: 160px;
+  height: auto;
+  filter: drop-shadow(0 0 10px var(--brand))
+          drop-shadow(0 0 20px var(--brand))
+          drop-shadow(0 0 30px var(--brand));
+  animation: pulse 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.85; }
+}
+
+@keyframes fadeOut {
+  to { opacity: 0; visibility: hidden; }
+}
+
+/* LIVE TECH MARKER */
+.tech-marker {
+  width: 26px;
+  height: 26px;
+  background: var(--brand);
+  border-radius: 50%;
+  box-shadow:
+    0 0 10px var(--brand),
+    0 0 20px var(--brand),
+    0 0 30px var(--brand);
+  animation: techPulse 1.4s infinite ease-in-out;
+}
+
+@keyframes techPulse {
+  0% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.85; }
+}
+
+/* TECH NAME LABEL */
+.tech-label {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  background: rgba(0,0,0,0.55);
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: #fff;
+  text-shadow: 0 0 6px var(--brand);
+  pointer-events: none;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <img src="logo.png" class="loader-logo" />
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar glass">
+
+  <div class="brand">
+    <img src="logo.png" class="brand-logo neon-logo" />
+    <h2 class="brand-title">Plush Intentions</h2>
+  </div>
+
+  <a onclick="showPanel('map-panel')"><i data-feather="map"></i> Map</a>
+  <a onclick="showPanel('active-panel')"><i data-feather="briefcase"></i> Active Jobs</a>
+  <a onclick="showPanel('pending-panel')"><i data-feather="clock"></i> Pending Jobs</a>
+  <a onclick="showPanel('completed-panel')"><i data-feather="check-circle"></i> Completed Jobs</a>
+  <a onclick="showPanel('tech-panel')"><i data-feather="users"></i> Technicians</a>
+  <a onclick="showPanel('settings-panel')"><i data-feather="settings"></i> Settings</a>
+
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar glass">
+  <span id="greeting"></span>
+</div>
+
+<!-- MAIN PANEL -->
+<div class="main-panel glass">
+
+  <div id="map-panel" class="panel">
+    <div id="map"></div>
+  </div>
+
+  <div id="active-panel" class="panel hidden">
+    <h2>Active Jobs</h2>
+    <div id="jobs-list"></div>
+  </div>
+
+  <div id="pending-panel" class="panel hidden">
+    <h2>Pending Jobs</h2>
+    <div id="pending-list"></div>
+  </div>
+
+  <div id="completed-panel" class="panel hidden">
+    <h2>Completed Jobs</h2>
+    <div id="completed-list"></div>
+  </div>
+
+  <div id="tech-panel" class="panel hidden">
+    <h2>Technicians</h2>
+    <div id="tech-list"></div>
+  </div>
+
+  <div id="settings-panel" class="panel hidden">
+    <h2>Settings</h2>
+  </div>
+
+</div>
+<script>
+
+// GLOBALS
+let map;
+let supabaseClient;
+let techMarkers = {};
+
+// INIT SUPABASE
+function initSupabase() {
+  supabaseClient = supabase.createClient(
+    "https://gsneugdwoxpibajghwge.supabase.co",
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzbmV1Z2R3b3hwaWJhamdod2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNjk2NjUsImV4cCI6MjA5Mzg0NTY2NX0.wmZDgY_fAfeiDlZzWLA4KT5_dlbyG7Ns1W4z_HZH8Ws"
+  );
+}
+
+// LOAD MAP
+function loadMap() {
+  mapboxgl.accessToken = "pk.eyJ1IjoicGx1c2gtaW50ZW50aW9ucyIsImEiOiJjbXA5ejJlcGwwMzQxMnJwdXBpZTg5NmYxIn0.i0wFsO5_bt70k942AsMNcg";
+
+  map = new mapboxgl.Map({
+    container: "map",
+    style: "mapbox://styles/mapbox/streets-v12",
+    center: [-84.56, 39.92],
+    zoom: 11
+  });
+
+  map.on("load", () => {
+    map.resize();
+  });
+}
+
+// PANEL SWITCHING
+function showPanel(panelId) {
+  const panels = [
+    "map-panel",
+    "active-panel",
+    "pending-panel",
+    "completed-panel",
+    "tech-panel",
+    "settings-panel"
+  ];
+
+  panels.forEach(id => {
+    document.getElementById(id).classList.add("hidden");
+  });
+
+  document.getElementById(panelId).classList.remove("hidden");
+
+  if (panelId === "map-panel" && map) {
+    setTimeout(() => map.resize(), 200);
+  }
+
+  if (panelId === "pending-panel") {
+    loadPendingJobs();
+  }
+}
+
+// GREETING
+function updateGreeting() {
+  const now = new Date();
+
+  const date = now.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  });
+
+  document.getElementById("greeting").innerText =
+    `Hello, Shevis. It’s ${date}. Ready to get started today.`;
+}
+
+// LIVE TECH MARKER UPDATE
+function updateTechMarker(tech) {
+  if (!tech.lat || !tech.lng) return;
+
+  if (!techMarkers[tech.id]) {
+    const el = document.createElement("div");
+    el.className = "tech-marker";
+
+    const label = document.createElement("div");
+    label.className = "tech-label";
+    label.innerText = tech.name;
+    el.appendChild(label);
+
+    techMarkers[tech.id] = new mapboxgl.Marker(el)
+      .setLngLat([tech.lng, tech.lat])
+      .addTo(map);
+
+    return;
+  }
+
+  const marker = techMarkers[tech.id];
+  const start = marker.getLngLat();
+  const end = { lng: tech.lng, lat: tech.lat };
+
+  let progress = 0;
+  const duration = 1000;
+
+  function animate() {
+    progress += 16;
+
+    const t = Math.min(progress / duration, 1);
+
+    const lng = start.lng + (end.lng - start.lng) * t;
+    const lat = start.lat + (end.lat - start.lat) * t;
+
+    marker.setLngLat([lng, lat]);
+
+    if (t < 1) requestAnimationFrame(animate);
+  }
+
+  requestAnimationFrame(animate);
+}
+
+// LIVE TRACKING POLLER
+async function liveTrackTechs() {
+  const { data, error } = await supabaseClient
+    .from("technicians")
+    .select("id, name, lat, lng");
+
+  if (error) {
+    console.error("Tech tracking error:", error);
+    return;
+  }
+
+  data.forEach(tech => updateTechMarker(tech));
+}
+
+setInterval(liveTrackTechs, 3000);
+liveTrackTechs();
+
+/* -----------------------------
+   PENDING JOBS SYSTEM (ADDED)
+------------------------------*/
+
+// Load pending jobs
+async function loadPendingJobs() {
+  const { data, error } = await supabaseClient
+    .from("jobs")
+    .select(`
+      id,
+      title,
+      status,
+      client_id,
+      clients ( name, address ),
+      technician_id,
+      technicians ( name )
+    `)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Error loading pending jobs:", error);
+    return;
+  }
+
+  renderPendingJobs(data);
+}
+
+// Render pending jobs
+function renderPendingJobs(jobs) {
+  const container = document.getElementById("pending-list");
+  container.innerHTML = "";
+
+  jobs.forEach(job => {
+    const div = document.createElement("div");
+    div.className = "glass";
+    div.style.padding = "16px";
+    div.style.marginBottom = "12px";
+
+    div.innerHTML = `
+      <h3>${job.title}</h3>
+      <p><strong>Client:</strong> ${job.clients?.name || "Unknown"}</p>
+      <p><strong>Address:</strong> ${job.clients?.address || "Unknown"}</p>
+
+      <label>Select Technician:</label>
+      <select id="tech-${job.id}" style="margin-left:10px; padding:4px;"></select>
+
+      <button style="margin-left:10px; padding:6px 12px; background:var(--brand); border:none; border-radius:6px; color:white;"
+        onclick="assignJob('${job.id}', document.getElementById('tech-${job.id}').value)">
+        Assign
+      </button>
+    `;
+
+    container.appendChild(div);
+
+    loadTechniciansIntoDropdown(`tech-${job.id}`);
+  });
+}
+
+// Load technicians into dropdown
+async function loadTechniciansIntoDropdown(selectId) {
+  const { data, error } = await supabaseClient
+    .from("technicians")
+    .select("user_id, name")
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("Tech dropdown error:", error);
+    return;
+  }
+
+  const select = document.getElementById(selectId);
+  select.innerHTML = "";
+
+  data.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t.user_id;
+    opt.textContent = t.name;
+    select.appendChild(opt);
+  });
+}
+
+// Assign job
+async function assignJob(jobId, techId) {
+  const { error } = await supabaseClient
+    .from("jobs")
+    .update({
+      technician_id: techId,
+      status: "active",
+      start_time: new Date().toISOString()
+    })
+    .eq("id", jobId);
+
+  if (error) {
+    console.error("Assign error:", error);
+    alert("Failed to assign job");
+    return;
+  }
+
+  loadPendingJobs();
+}
+
+// LOADER
+window.addEventListener("load", () => {
+  initSupabase();
+  loadMap();
+  updateGreeting();
+
+  setTimeout(() => {
+    document.getElementById("loader").style.display = "none";
+    if (map) map.resize();
+  }, 1800);
+});
+
+// ICONS
+feather.replace();
+
+</script>
+
+</body>
+</html>
