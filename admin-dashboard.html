@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Admin Dashboard</title>
+
+  <!-- External Libraries -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet" />
+
+  <!-- Your Stylesheet -->
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     LOADER
+════════════════════════════════════════════ -->
+<div id="loader">
+  <div class="loader-logo">Plush Intentions<span>ADMIN DASHBOARD</span></div>
+  <div class="loader-inner"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     ASSIGN MODAL
+════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="assign-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-job-title">Assign Technician</div>
+    <select id="modal-tech-select">
+      <option value="">Choose technician…</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn-modal-confirm" onclick="confirmAssign()">Confirm Assignment</button>
+      <button class="btn-modal-cancel"  onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     TOAST
+════════════════════════════════════════════ -->
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════
+     SIDEBAR OVERLAY (mobile tap-to-close)
+════════════════════════════════════════════ -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<!-- ═══════════════════════════════════════════
+     SHELL
+════════════════════════════════════════════ -->
+<div class="shell">
+
+  <!-- ── SIDEBAR ────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+
+    <div class="sidebar-logo">
+      Plush Intentions
+      <span>ADMIN PORTAL</span>
+    </div>
+
+    <nav class="sidebar-nav">
+
+      <div class="nav-section-label">Overview</div>
+
+      <a class="nav-link active" id="nav-map" onclick="showPanel('map')">
+        <i data-feather="map"></i>
+        Live Map
+      </a>
+
+      <div class="nav-section-label">Jobs</div>
+
+      <a class="nav-link" id="nav-jobs" onclick="showPanel('jobs')">
+        <i data-feather="briefcase"></i>
+        All Jobs
+        <span class="nav-badge" id="badge-jobs">0</span>
+      </a>
+
+      <a class="nav-link" id="nav-pending" onclick="showPanel('pending')">
+        <i data-feather="clock"></i>
+        Pending
+        <span class="nav-badge" id="badge-pending">0</span>
+      </a>
+
+      <a class="nav-link" id="nav-completed" onclick="showPanel('completed')">
+        <i data-feather="check-circle"></i>
+        Completed
+        <span class="nav-badge" id="badge-completed">0</span>
+      </a>
+
+      <div class="nav-section-label">People</div>
+
+      <a class="nav-link" id="nav-techs" onclick="showPanel('techs')">
+        <i data-feather="users"></i>
+        Technicians
+        <span class="nav-badge" id="badge-techs">0</span>
+      </a>
+
+      <a class="nav-link" id="nav-clients" onclick="showPanel('clients')">
+        <i data-feather="user"></i>
+        Clients
+        <span class="nav-badge" id="badge-clients">0</span>
+      </a>
+
+      <div class="nav-section-label">Actions</div>
+
+      <a class="nav-link" id="nav-newjob" onclick="showPanel('newjob')">
+        <i data-feather="plus-circle"></i>
+        New Work Order
+      </a>
+
+    </nav>
+
+    <div class="sidebar-footer">
+      &copy; 2026 Plush Intentions
+    </div>
+
+  </aside>
+  <!-- /sidebar -->
+
+  <!-- ── MAIN ───────────────────────────────── -->
+  <div class="main">
+
+    <!-- HEADER -->
+    <header class="header">
+      <button class="btn-hamburger" id="btn-hamburger" aria-label="Toggle menu">
+        <i data-feather="menu"></i>
+      </button>
+      <div class="header-titles">
+        <h1 id="panel-title">Live Map</h1>
+        <p  id="panel-subtitle">Real-time technician locations and job pins</p>
+      </div>
+      <div class="header-right">
+        <div id="clock">--:--:--</div>
+      </div>
+    </header>
+
+    <!-- STATS ROW -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Jobs</div>
+        <div class="stat-value" id="stat-jobs">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active</div>
+        <div class="stat-value" id="stat-active">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pending</div>
+        <div class="stat-value" id="stat-pending">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Technicians</div>
+        <div class="stat-value" id="stat-techs">0</div>
+      </div>
+    </div>
+
+    <!-- PANELS -->
+    <div class="panels">
+
+      <!-- MAP -->
+      <div class="panel-map active" id="panel-map">
+        <div id="map"></div>
+      </div>
+
+      <!-- ALL JOBS -->
+      <div class="panel" id="panel-jobs">
+        <div id="list-jobs"></div>
+      </div>
+
+      <!-- PENDING JOBS -->
+      <div class="panel" id="panel-pending">
+        <div id="list-pending"></div>
+      </div>
+
+      <!-- COMPLETED -->
+      <div class="panel" id="panel-completed">
+        <div id="list-completed"></div>
+      </div>
+
+      <!-- TECHNICIANS -->
+      <div class="panel" id="panel-techs">
+        <div id="list-techs"></div>
+      </div>
+
+      <!-- CLIENTS -->
+      <div class="panel" id="panel-clients">
+        <div class="table-wrap">
+          <table class="clients-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>City</th>
+                <th>Jobs</th>
+              </tr>
+            </thead>
+            <tbody id="clients-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- NEW WORK ORDER -->
+      <div class="panel" id="panel-newjob">
+
+        <!-- Success Screen -->
+        <div class="wo-success" id="wo-success">
+          <div class="wo-success-icon">✅</div>
+          <h2>Work Order Posted!</h2>
+          <p id="wo-success-msg"></p>
+          <button class="btn-submit" onclick="resetWorkOrderForm()" style="margin-top:8px">
+            <i data-feather="plus"></i> Create Another
+          </button>
+        </div>
+
+        <!-- Form -->
+        <div class="wo-form" id="wo-form">
+
+          <!-- JOB DETAILS -->
+          <div class="wo-section">
+            <div class="wo-section-title">Job Details</div>
+            <div class="wo-grid full">
+              <div class="wo-field">
+                <label>Job Title *</label>
+                <input type="text" id="wo-title" placeholder="e.g. HVAC Repair – Unit 4B" />
+              </div>
+            </div>
+            <div class="wo-grid" style="margin-top:12px">
+              <div class="wo-field">
+                <label>Scheduled Date</label>
+                <input type="date" id="wo-date" />
+              </div>
+              <div class="wo-field">
+                <label>Scheduled Time</label>
+                <input type="time" id="wo-time" />
+              </div>
+            </div>
+            <div class="wo-grid full" style="margin-top:12px">
+              <div class="wo-field">
+                <label>Description</label>
+                <textarea id="wo-desc" placeholder="Describe the issue or scope of work…"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- PRIORITY -->
+          <div class="wo-section">
+            <div class="wo-section-title">Priority</div>
+            <div class="prio-group">
+              <button class="prio-btn" data-prio="urgent" onclick="selectPrio('urgent')">🔴 Urgent</button>
+              <button class="prio-btn" data-prio="high"   onclick="selectPrio('high')">🟠 High</button>
+              <button class="prio-btn sel-normal" data-prio="normal" onclick="selectPrio('normal')">🟣 Normal</button>
+              <button class="prio-btn" data-prio="low"    onclick="selectPrio('low')">🟢 Low</button>
+            </div>
+          </div>
+
+          <!-- CLIENT -->
+          <div class="wo-section">
+            <div class="wo-section-title">Client</div>
+
+            <label class="toggle-row">
+              <input type="checkbox" id="new-client-toggle" onchange="toggleNewClient(this.checked)" />
+              Create new client instead
+            </label>
+
+            <!-- Existing client -->
+            <div id="existing-client-wrap">
+              <div class="wo-field">
+                <label>Select Client</label>
+                <select id="wo-client-id">
+                  <option value="">Choose client…</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- New client fields -->
+            <div id="new-client-wrap" style="display:none">
+              <div class="wo-grid" style="margin-bottom:14px">
+                <div class="wo-field">
+                  <label>Full Name *</label>
+                  <input type="text" id="nc-name" placeholder="Jane Smith" />
+                </div>
+                <div class="wo-field">
+                  <label>Phone</label>
+                  <input type="tel" id="nc-phone" placeholder="(513) 000-0000" oninput="fmtPhone(this)" />
+                </div>
+              </div>
+              <div class="wo-grid" style="margin-bottom:14px">
+                <div class="wo-field">
+                  <label>Email</label>
+                  <input type="email" id="nc-email" placeholder="client@email.com" />
+                </div>
+                <div class="wo-field">
+                  <label>City</label>
+                  <input type="text" id="nc-city" placeholder="Cincinnati, OH" />
+                </div>
+              </div>
+              <div class="wo-grid full">
+                <div class="wo-field">
+                  <label>Address</label>
+                  <input type="text" id="nc-address" placeholder="123 Main St, Cincinnati, OH 45202" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ASSIGN TECHNICIAN -->
+          <div class="wo-section">
+            <div class="wo-section-title">Technician Assignment</div>
+            <div class="wo-grid">
+              <div class="wo-field">
+                <label>Assign To</label>
+                <select id="wo-tech-id">
+                  <option value="">Leave unassigned (pending)</option>
+                </select>
+              </div>
+              <div class="wo-field">
+                <label>Internal Notes</label>
+                <input type="text" id="wo-notes" placeholder="Any notes for the technician…" />
+              </div>
+            </div>
+          </div>
+
+          <!-- SUBMIT -->
+          <div class="wo-submit-bar">
+            <button class="btn-submit" id="wo-submit-btn" onclick="submitWorkOrder()">
+              <i data-feather="send"></i>
+              Post Work Order
+            </button>
+            <button class="btn-reset" onclick="resetWorkOrderForm()">Clear Form</button>
+            <span id="wo-error" style="display:none;color:#f87171;font-size:13px"></span>
+          </div>
+
+        </div><!-- /wo-form -->
+      </div><!-- /panel-newjob -->
+
+    </div><!-- /panels -->
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- ═══════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+<script src="dashboard.js"></script>
+
+</body>
+</html>
