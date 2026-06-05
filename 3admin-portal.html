@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Plush Intentions – Admin Portal</title>
+<script src="https://unpkg.com/feather-icons"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --brand: #FF4F9F;
+  --brand2: #c8006e;
+  --bg: #0d0d14;
+  --card: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.10);
+  --text: #fff;
+  --muted: rgba(255,255,255,0.5);
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #f59e0b;
+  --blue: #3b82f6;
+  --sidebar-w: 220px;
+}
+*,*::before,*::after { margin:0;padding:0;box-sizing:border-box;font-family:Inter,sans-serif; }
+body { background:var(--bg); color:var(--text); display:flex; min-height:100vh; }
+
+
+
+/* ── SIDEBAR ─────────────────────────────── */
+#sidebar {
+  width:var(--sidebar-w);min-height:100vh;
+  background:rgba(255,255,255,0.04);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;bottom:0;z-index:100;
+}
+.sidebar-logo {
+  padding:24px 20px 16px;
+  font-size:15px;font-weight:800;color:var(--brand);
+  display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--border);
+}
+.sidebar-logo svg { width:28px;height:28px; }
+.nav-item {
+  display:flex;align-items:center;gap:10px;
+  padding:12px 20px;font-size:14px;cursor:pointer;
+  color:var(--muted);transition:all .2s;border:none;background:none;width:100%;text-align:left;
+}
+.nav-item:hover,.nav-item.active { color:#fff;background:rgba(255,79,159,0.12); }
+.nav-item.active { border-left:3px solid var(--brand);padding-left:17px; }
+.nav-item svg { width:16px;height:16px;flex-shrink:0; }
+.sidebar-bottom { margin-top:auto;padding:16px; }
+
+/* ── MAIN ────────────────────────────────── */
+#main {
+  margin-left:var(--sidebar-w);flex:1;
+  padding:32px;min-height:100vh;
+}
+.page { display:none; }
+.page.active { display:block; }
+.page-title {
+  font-size:22px;font-weight:800;margin-bottom:24px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+
+/* ── STATS ───────────────────────────────── */
+.stats-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-bottom:28px; }
+.stat-card {
+  background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:20px;
+}
+.stat-card .label { font-size:12px;color:var(--muted);margin-bottom:6px; }
+.stat-card .value { font-size:28px;font-weight:800; }
+.stat-card .sub { font-size:11px;color:var(--muted);margin-top:4px; }
+
+/* ── TABLE ───────────────────────────────── */
+.table-wrap {
+  background:var(--card);border:1px solid var(--border);
+  border-radius:16px;overflow:hidden;
+}
+.table-toolbar {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap;
+}
+.search-input {
+  background:rgba(255,255,255,0.07);border:1px solid var(--border);
+  border-radius:10px;padding:9px 14px;color:#fff;font-size:13px;width:240px;
+}
+.search-input:focus { outline:none;border-color:var(--brand); }
+table { width:100%;border-collapse:collapse; }
+th {
+  text-align:left;font-size:11px;font-weight:700;color:var(--muted);
+  padding:12px 16px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px;
+}
+td { padding:13px 16px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04); }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(255,255,255,0.03); }
+
+/* ── BADGES ──────────────────────────────── */
+.badge {
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;
+}
+.badge.green { background:rgba(34,197,94,.15);color:var(--green); }
+.badge.red { background:rgba(239,68,68,.15);color:var(--red); }
+.badge.yellow { background:rgba(245,158,11,.15);color:var(--yellow); }
+.badge.blue { background:rgba(59,130,246,.15);color:var(--blue); }
+.badge.pink { background:rgba(255,79,159,.15);color:var(--brand); }
+
+/* ── BUTTONS ─────────────────────────────── */
+.btn {
+  display:inline-flex;align-items:center;gap:6px;
+  padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;
+  cursor:pointer;border:none;transition:all .2s;
+}
+.btn-brand { background:var(--brand);color:#fff; }
+.btn-brand:hover { background:var(--brand2); }
+.btn-ghost { background:rgba(255,255,255,0.07);color:#fff;border:1px solid var(--border); }
+.btn-ghost:hover { background:rgba(255,255,255,0.12); }
+.btn-green { background:rgba(34,197,94,.2);color:var(--green);border:1px solid rgba(34,197,94,.3); }
+.btn-green:hover { background:rgba(34,197,94,.3); }
+.btn-red { background:rgba(239,68,68,.2);color:var(--red);border:1px solid rgba(239,68,68,.3); }
+.btn-red:hover { background:rgba(239,68,68,.3); }
+.btn-sm { padding:6px 11px;font-size:12px; }
+.btn svg { width:14px;height:14px; }
+
+/* ── MODAL ───────────────────────────────── */
+.modal-backdrop {
+  position:fixed;inset:0;background:rgba(0,0,0,0.7);
+  backdrop-filter:blur(6px);z-index:500;
+  display:none;align-items:center;justify-content:center;
+}
+.modal-backdrop.open { display:flex; }
+.modal {
+  background:#1a1a2e;border:1px solid var(--border);
+  border-radius:20px;padding:32px;width:100%;max-width:520px;
+  max-height:90vh;overflow-y:auto;position:relative;
+}
+.modal h3 { font-size:17px;font-weight:800;margin-bottom:20px;color:var(--brand); }
+.modal-close {
+  position:absolute;top:16px;right:16px;
+  background:rgba(255,255,255,0.07);border:none;color:#fff;
+  border-radius:8px;padding:6px;cursor:pointer;display:flex;
+}
+.form-grid { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
+.form-grid.single { grid-template-columns:1fr; }
+.form-group { display:flex;flex-direction:column;gap:6px; }
+.form-group label { font-size:12px;color:var(--muted);font-weight:600; }
+.form-group input,.form-group select,.form-group textarea {
+  background:rgba(255,255,255,0.07);border:1px solid var(--border);
+  border-radius:10px;padding:10px 12px;color:#fff;font-size:13px;
+}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus {
+  outline:none;border-color:var(--brand);
+}
+.form-group select option { background:#1a1a2e; }
+.form-group textarea { resize:vertical;min-height:80px; }
+.modal-actions { display:flex;gap:10px;justify-content:flex-end;margin-top:20px; }
+
+/* ── TECH MATCH CARD ─────────────────────── */
+.match-list { display:flex;flex-direction:column;gap:10px;margin-top:16px; }
+.match-card {
+  background:rgba(255,255,255,0.05);border:1px solid var(--border);
+  border-radius:12px;padding:14px 16px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.match-card.top { border-color:rgba(255,79,159,0.4);background:rgba(255,79,159,0.07); }
+.match-info { display:flex;flex-direction:column;gap:3px; }
+.match-name { font-size:14px;font-weight:700; }
+.match-meta { font-size:11px;color:var(--muted); }
+.match-score {
+  font-size:20px;font-weight:800;color:var(--brand);
+  min-width:48px;text-align:right;
+}
+
+/* ── APPROVAL CARD ───────────────────────── */
+.approval-card {
+  background:var(--card);border:1px solid var(--border);
+  border-radius:14px;padding:18px 20px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;margin-bottom:10px;
+}
+.approval-info { display:flex;flex-direction:column;gap:4px; }
+.approval-name { font-size:15px;font-weight:700; }
+.approval-meta { font-size:12px;color:var(--muted); }
+.approval-actions { display:flex;gap:8px; }
+
+/* ── TOAST ───────────────────────────────── */
+#toast {
+  position:fixed;bottom:24px;right:24px;
+  background:#1e1e2e;border:1px solid var(--border);
+  border-radius:12px;padding:14px 20px;font-size:13px;
+  z-index:9999;display:none;
+  box-shadow:0 8px 30px rgba(0,0,0,0.4);
+  animation:slideUp .3s ease;
+}
+#toast.show { display:block; }
+#toast.success { border-color:var(--green);color:var(--green); }
+#toast.error { border-color:var(--red);color:var(--red); }
+@keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+/* ── RESPONSIVE ──────────────────────────── */
+@media(max-width:700px){
+  #sidebar { display:none; }
+  #main { margin-left:0; }
+  .form-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav id="sidebar" style="display:none">
+  <div class="sidebar-logo">
+    <i data-feather="heart"></i> Admin
+  </div>
+  <button class="nav-item active" onclick="nav('dashboard')"><i data-feather="grid"></i> Dashboard</button>
+  <button class="nav-item" onclick="nav('clients')"><i data-feather="users"></i> Clients</button>
+  <button class="nav-item" onclick="nav('technicians')"><i data-feather="tool"></i> Technicians</button>
+  <button class="nav-item" onclick="nav('approvals')"><i data-feather="user-check"></i> Approvals <span id="approval-badge" style="margin-left:auto;background:var(--brand);border-radius:100px;font-size:10px;padding:1px 7px;display:none"></span></button>
+  <button class="nav-item" onclick="nav('workorders')"><i data-feather="clipboard"></i> Work Orders</button>
+  <button class="nav-item" onclick="nav('infractions')"><i data-feather="alert-triangle"></i> Infractions <span id="inf-badge" style="margin-left:auto;background:var(--red);border-radius:100px;font-size:10px;padding:1px 7px;display:none"></span></button>
+  <div class="sidebar-bottom">
+    <button class="btn btn-ghost" style="width:100%" onclick="doLogout()"><i data-feather="log-out"></i> Sign Out</button>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main id="main" style="display:none">
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-title">Dashboard</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Total Clients</div><div class="value" id="stat-clients">—</div></div>
+      <div class="stat-card"><div class="label">Active Technicians</div><div class="value" id="stat-techs">—</div></div>
+      <div class="stat-card"><div class="label">Pending Approvals</div><div class="value" id="stat-approvals">—</div></div>
+      <div class="stat-card"><div class="label">Open Work Orders</div><div class="value" id="stat-open">—</div></div>
+      <div class="stat-card"><div class="label">Completed This Month</div><div class="value" id="stat-completed">—</div></div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-toolbar"><span style="font-weight:700">Recent Work Orders</span></div>
+      <table><thead><tr><th>ID</th><th>Client</th><th>Service</th><th>Status</th><th>Assigned Tech</th><th>Date</th></tr></thead>
+      <tbody id="dash-wo-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- CLIENTS -->
+  <div class="page" id="page-clients">
+    <div class="page-title">Clients <button class="btn btn-brand btn-sm" onclick="openClientModal()"><i data-feather="plus"></i> Add Client</button></div>
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <input class="search-input" placeholder="Search clients…" oninput="filterTable('clients-tbody',this.value)"/>
+      </div>
+      <table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody id="clients-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- TECHNICIANS -->
+  <div class="page" id="page-technicians">
+    <div class="page-title">Technicians <button class="btn btn-brand btn-sm" onclick="openTechModal()"><i data-feather="plus"></i> Add Technician</button></div>
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <input class="search-input" placeholder="Search technicians…" oninput="filterTable('techs-tbody',this.value)"/>
+      </div>
+      <table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Skills</th><th>Location</th><th>Radius</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody id="techs-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- APPROVALS -->
+  <div class="page" id="page-approvals">
+    <div class="page-title">Pending Approvals</div>
+    <div id="approvals-list"><p style="color:var(--muted)">Loading…</p></div>
+  </div>
+
+  <!-- INFRACTIONS -->
+  <div class="page" id="page-infractions">
+    <div class="page-title">Technician Infraction Reviews</div>
+
+    <!-- PENDING REVIEWS -->
+    <div class="table-wrap" style="margin-bottom:28px">
+      <div class="table-toolbar">
+        <span>⚠️ Pending Admin Review</span>
+        <select class="search-input" id="inf-filter" style="width:160px" onchange="loadInfractions()">
+          <option value="pending">Pending</option>
+          <option value="">All Reports</option>
+          <option value="dismissed">Dismissed</option>
+          <option value="warned">Warning Issued</option>
+          <option value="suspended">Suspended</option>
+          <option value="removed">Removed</option>
+        </select>
+      </div>
+      <table><thead><tr><th>Technician</th><th>Submitted By</th><th>Type</th><th>Severity</th><th>Description</th><th>Recommendation</th><th>Date</th><th>Decision</th></tr></thead>
+      <tbody id="inf-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- WORK ORDERS -->
+  <div class="page" id="page-workorders">
+    <div class="page-title">Work Orders <button class="btn btn-brand btn-sm" onclick="openWOModal()"><i data-feather="plus"></i> New Work Order</button></div>
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <input class="search-input" placeholder="Search work orders…" oninput="filterTable('wo-tbody',this.value)"/>
+        <select id="wo-filter" class="search-input" style="width:160px" onchange="loadWorkOrders()">
+          <option value="">All Statuses</option>
+          <option value="open">Open</option>
+          <option value="assigned">Assigned</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <table><thead><tr><th>ID</th><th>Client</th><th>Service</th><th>Address</th><th>Status</th><th>Assigned Tech</th><th>Scheduled</th><th>Actions</th></tr></thead>
+      <tbody id="wo-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+</main>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ── DOCS VIEWER MODAL ────────────────── -->
+<div class="modal-backdrop" id="docs-modal">
+  <div class="modal" style="max-width:540px">
+    <button class="modal-close" onclick="closeModal('docs-modal')"><i data-feather="x"></i></button>
+    <h3 id="docs-modal-name">Documents</h3>
+    <div id="docs-list" style="display:flex;flex-direction:column;gap:10px;margin-top:16px"></div>
+    <div class="modal-actions" style="margin-top:20px">
+      <button class="btn btn-ghost" onclick="closeModal('docs-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CLIENT MODAL ──────────────────────── -->
+<div class="modal-backdrop" id="client-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('client-modal')"><i data-feather="x"></i></button>
+    <h3 id="client-modal-title">Add Client</h3>
+    <input type="hidden" id="client-id"/>
+    <div class="form-grid">
+      <div class="form-group"><label>First Name</label><input id="c-fname" placeholder="Jane"/></div>
+      <div class="form-group"><label>Last Name</label><input id="c-lname" placeholder="Doe"/></div>
+      <div class="form-group"><label>Email</label><input id="c-email" type="email" placeholder="jane@email.com"/></div>
+      <div class="form-group"><label>Phone</label><input id="c-phone" placeholder="(555) 000-0000"/></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Address</label><input id="c-address" placeholder="123 Main St, City, OH 44000"/></div>
+      <div class="form-group"><label>Status</label>
+        <select id="c-status">
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Notes</label><textarea id="c-notes" placeholder="Any notes about this client…"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('client-modal')">Cancel</button>
+      <button class="btn btn-brand" onclick="saveClient()">Save Client</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── TECHNICIAN MODAL ──────────────────── -->
+<div class="modal-backdrop" id="tech-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('tech-modal')"><i data-feather="x"></i></button>
+    <h3 id="tech-modal-title">Add Technician</h3>
+    <input type="hidden" id="tech-id"/>
+    <div class="form-grid">
+      <div class="form-group"><label>Name</label><input id="t-name" placeholder="Full Name"/></div>
+      <div class="form-group"><label>Email</label><input id="t-email" type="email" placeholder="tech@email.com"/></div>
+      <div class="form-group"><label>Phone</label><input id="t-phone" placeholder="(555) 000-0000"/></div>
+      <div class="form-group"><label>Base Location / City</label><input id="t-location" placeholder="Lorain, OH"/></div>
+      <div class="form-group"><label>Zip Code</label><input id="t-zip" placeholder="44052"/></div>
+      <div class="form-group"><label>Work Radius (miles)</label><input id="t-radius" type="number" placeholder="25"/></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Skills (comma separated)</label><input id="t-skills" placeholder="Waxing, Lashes, Nails"/></div>
+      <div class="form-group"><label>Experience Level</label>
+        <select id="t-exp">
+          <option value="entry">Entry</option>
+          <option value="mid">Mid</option>
+          <option value="senior">Senior</option>
+          <option value="master">Master</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Status</label>
+        <select id="t-status">
+          <option value="approved">Approved</option>
+          <option value="pending_review">Pending Review</option>
+          <option value="suspended">Suspended</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Bio / Notes</label><textarea id="t-bio"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('tech-modal')">Cancel</button>
+      <button class="btn btn-brand" onclick="saveTech()">Save Technician</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── WORK ORDER MODAL ───────────────────── -->
+<div class="modal-backdrop" id="wo-modal">
+  <div class="modal" style="max-width:600px">
+    <button class="modal-close" onclick="closeModal('wo-modal')"><i data-feather="x"></i></button>
+    <h3 id="wo-modal-title">New Work Order</h3>
+    <input type="hidden" id="wo-id"/>
+    <div class="form-grid">
+      <div class="form-group" style="grid-column:1/-1"><label>Client</label>
+        <select id="wo-client"></select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Service Type</label>
+        <input id="wo-service" placeholder="e.g. Full Wax, Lash Extensions…"/>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Service Address</label>
+        <input id="wo-address" placeholder="123 Main St, City, OH 44000"/>
+      </div>
+      <div class="form-group"><label>Zip Code</label><input id="wo-zip" placeholder="44052"/></div>
+      <div class="form-group"><label>Scheduled Date & Time</label>
+        <input id="wo-scheduled" type="datetime-local"/>
+      </div>
+      <div class="form-group"><label>Duration (hrs)</label>
+        <input id="wo-duration" type="number" placeholder="1.5" step="0.5"/>
+      </div>
+      <div class="form-group"><label>Pay Rate ($)</label>
+        <input id="wo-pay" type="number" placeholder="75"/>
+      </div>
+      <div class="form-group"><label>Status</label>
+        <select id="wo-status">
+          <option value="open">Open</option>
+          <option value="assigned">Assigned</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Notes</label>
+        <textarea id="wo-notes" placeholder="Special instructions…"></textarea>
+      </div>
+    </div>
+    <!-- Best Tech Matching -->
+    <div id="match-section" style="margin-top:20px;display:none">
+      <div style="font-size:13px;font-weight:700;color:var(--brand);margin-bottom:8px">🌟 Best Technicians for This Job</div>
+      <div class="match-list" id="match-list"></div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="findBestTechs()" id="match-btn"><i data-feather="zap"></i> Find Best Techs</button>
+    </div>
+    <div class="form-group" style="margin-top:14px">
+      <label>Assign Technician</label>
+      <select id="wo-tech">
+        <option value="">— Unassigned —</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('wo-modal')">Cancel</button>
+      <button class="btn btn-brand" onclick="saveWO()">Save Work Order</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';   // ← paste your Project URL
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY'; // ← paste your anon/public key
+
+let sb;
+let allTechs = [];
+let allClients = [];
+
+// ── INIT ──────────────────────────────────────────────────────────────
+let portalReady = false;
+
+window.addEventListener('load', () => {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  try { feather.replace(); } catch(e){}
+
+  // Primary: listen for auth state — fires reliably on all browsers incl. iOS Safari
+  sb.auth.onAuthStateChange((event, session) => {
+    if (portalReady) return; // already loaded, ignore repeat fires
+    if (session) {
+      portalReady = true;
+      showPortal();
+    } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
+      window.location.href = '/';
+    }
+  });
+
+  // Fallback: also try getSession in case onAuthStateChange is slow
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (portalReady) return;
+    if (session) {
+      portalReady = true;
+      showPortal();
+    }
+  });
+});
+
+// ── AUTH ──────────────────────────────────────────────────────────────
+async function checkSession() {
+  // kept for legacy compatibility — init block handles session now
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  window.location.href = '/';
+}
+
+function showPortal() {
+  document.getElementById('sidebar').style.display = 'flex';
+  document.getElementById('main').style.display = 'block';
+  loadAll();
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  event.currentTarget.classList.add('active');
+
+  if (page === 'clients')     loadClients();
+  if (page === 'technicians') loadTechnicians();
+  if (page === 'approvals')   loadApprovals();
+  if (page === 'workorders')  loadWorkOrders();
+  if (page === 'infractions') loadInfractions();
+}
+
+// ── LOAD ALL ──────────────────────────────────────────────────────────
+async function loadAll() {
+  await Promise.all([
+    loadDashboard(),
+    loadTechsCache(),
+    loadClientsCache(),
+    loadInfractionBadge()
+  ]);
+}
+
+async function loadInfractionBadge() {
+  const { count } = await sb.from('tech_infractions')
+    .select('*',{count:'exact',head:true}).eq('admin_decision','pending');
+  const badge = document.getElementById('inf-badge');
+  if (count > 0) { badge.textContent = count; badge.style.display = 'inline'; }
+  else badge.style.display = 'none';
+}
+
+async function loadTechsCache() {
+  const { data } = await sb.from('technicians').select('*').eq('status','approved');
+  allTechs = data || [];
+  populateTechSelect();
+}
+
+async function loadClientsCache() {
+  const { data } = await sb.from('clients').select('*');
+  allClients = data || [];
+  populateClientSelect();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const [
+    { count: cCount },
+    { count: tCount },
+    { count: aCount },
+    { count: oCount },
+    { count: doneCount },
+    { data: recentWO }
+  ] = await Promise.all([
+    sb.from('clients').select('*', { count:'exact', head:true }),
+    sb.from('technicians').select('*', { count:'exact', head:true }).eq('status','approved'),
+    sb.from('technicians').select('*', { count:'exact', head:true }).eq('status','pending_review'),
+    sb.from('work_orders').select('*', { count:'exact', head:true }).eq('status','open'),
+    sb.from('work_orders').select('*', { count:'exact', head:true }).eq('status','completed'),
+    sb.from('work_orders').select('id,service_type,status,scheduled_at,clients(first_name,last_name),technicians(name)').order('created_at',{ascending:false}).limit(8)
+  ]);
+
+  document.getElementById('stat-clients').textContent   = cCount ?? '—';
+  document.getElementById('stat-techs').textContent     = tCount ?? '—';
+  document.getElementById('stat-approvals').textContent = aCount ?? '—';
+  document.getElementById('stat-open').textContent      = oCount ?? '—';
+  document.getElementById('stat-completed').textContent = doneCount ?? '—';
+
+  // approval badge
+  if (aCount > 0) {
+    const b = document.getElementById('approval-badge');
+    b.textContent = aCount;
+    b.style.display = 'inline';
+  }
+
+  const tbody = document.getElementById('dash-wo-tbody');
+  if (!recentWO || !recentWO.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No work orders yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = recentWO.map(wo => `
+    <tr>
+      <td style="color:var(--muted);font-size:11px">${wo.id.slice(0,8)}</td>
+      <td>${wo.clients ? wo.clients.first_name + ' ' + wo.clients.last_name : '—'}</td>
+      <td>${wo.service_type || '—'}</td>
+      <td>${statusBadge(wo.status)}</td>
+      <td>${wo.technicians ? wo.technicians.name : '<span style="color:var(--muted)">Unassigned</span>'}</td>
+      <td>${wo.scheduled_at ? new Date(wo.scheduled_at).toLocaleDateString() : '—'}</td>
+    </tr>`).join('');
+  feather.replace();
+}
+
+// ── CLIENTS ───────────────────────────────────────────────────────────
+async function loadClients() {
+  const { data } = await sb.from('clients').select('*').order('created_at',{ascending:false});
+  allClients = data || [];
+  populateClientSelect();
+  const tbody = document.getElementById('clients-tbody');
+  if (!data?.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No clients yet</td></tr>'; return; }
+  tbody.innerHTML = data.map(c => `
+    <tr>
+      <td><strong>${c.first_name} ${c.last_name}</strong></td>
+      <td>${c.email || '—'}</td>
+      <td>${c.phone || '—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${c.address || '—'}</td>
+      <td>${c.status === 'active' ? '<span class="badge green">Active</span>' : '<span class="badge red">Inactive</span>'}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick='editClient(${JSON.stringify(c)})'><i data-feather="edit-2"></i></button>
+        <button class="btn btn-red btn-sm" onclick="deleteRow('clients','${c.id}',loadClients)"><i data-feather="trash-2"></i></button>
+      </td>
+    </tr>`).join('');
+  feather.replace();
+}
+
+function openClientModal(reset=true) {
+  if (reset) {
+    document.getElementById('client-modal-title').textContent = 'Add Client';
+    document.getElementById('client-id').value = '';
+    ['c-fname','c-lname','c-email','c-phone','c-address','c-notes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('c-status').value = 'active';
+  }
+  document.getElementById('client-modal').classList.add('open');
+}
+
+function editClient(c) {
+  document.getElementById('client-modal-title').textContent = 'Edit Client';
+  document.getElementById('client-id').value   = c.id;
+  document.getElementById('c-fname').value     = c.first_name || '';
+  document.getElementById('c-lname').value     = c.last_name  || '';
+  document.getElementById('c-email').value     = c.email      || '';
+  document.getElementById('c-phone').value     = c.phone      || '';
+  document.getElementById('c-address').value   = c.address    || '';
+  document.getElementById('c-notes').value     = c.notes      || '';
+  document.getElementById('c-status').value    = c.status     || 'active';
+  openClientModal(false);
+}
+
+async function saveClient() {
+  const id = document.getElementById('client-id').value;
+  const payload = {
+    first_name: document.getElementById('c-fname').value.trim(),
+    last_name:  document.getElementById('c-lname').value.trim(),
+    email:      document.getElementById('c-email').value.trim(),
+    phone:      document.getElementById('c-phone').value.trim(),
+    address:    document.getElementById('c-address').value.trim(),
+    notes:      document.getElementById('c-notes').value.trim(),
+    status:     document.getElementById('c-status').value
+  };
+  const { error } = id
+    ? await sb.from('clients').update(payload).eq('id', id)
+    : await sb.from('clients').insert([payload]);
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  toast('Client saved ✓', 'success');
+  closeModal('client-modal');
+  loadClients();
+}
+
+function populateClientSelect() {
+  const sel = document.getElementById('wo-client');
+  sel.innerHTML = '<option value="">— Select Client —</option>' +
+    allClients.map(c => `<option value="${c.id}">${c.first_name} ${c.last_name}</option>`).join('');
+}
+
+// ── TECHNICIANS ───────────────────────────────────────────────────────
+async function loadTechnicians() {
+  const { data } = await sb.from('technicians').select('*').order('created_at',{ascending:false});
+  allTechs = (data || []).filter(t => t.status === 'approved');
+  populateTechSelect();
+  const tbody = document.getElementById('techs-tbody');
+  if (!data?.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">No technicians yet</td></tr>'; return; }
+  tbody.innerHTML = data.map(t => `
+    <tr>
+      <td><strong>${t.name}</strong></td>
+      <td>${t.email || '—'}</td>
+      <td>${t.phone || '—'}</td>
+      <td style="font-size:12px;max-width:160px">${(t.skills||[]).join(', ')}</td>
+      <td>${t.base_location || '—'}</td>
+      <td>${t.work_radius || '—'} mi</td>
+      <td>${statusBadge(t.status)}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick='editTech(${JSON.stringify(t)})'><i data-feather="edit-2"></i></button>
+        <button class="btn btn-red btn-sm" onclick="deleteRow('technicians','${t.id}',loadTechnicians)"><i data-feather="trash-2"></i></button>
+      </td>
+    </tr>`).join('');
+  feather.replace();
+}
+
+function openTechModal(reset=true) {
+  if (reset) {
+    document.getElementById('tech-modal-title').textContent = 'Add Technician';
+    document.getElementById('tech-id').value = '';
+    ['t-name','t-email','t-phone','t-location','t-zip','t-radius','t-skills','t-bio'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('t-exp').value    = 'mid';
+    document.getElementById('t-status').value = 'approved';
+  }
+  document.getElementById('tech-modal').classList.add('open');
+}
+
+function editTech(t) {
+  document.getElementById('tech-modal-title').textContent = 'Edit Technician';
+  document.getElementById('tech-id').value    = t.id;
+  document.getElementById('t-name').value     = t.name          || '';
+  document.getElementById('t-email').value    = t.email         || '';
+  document.getElementById('t-phone').value    = t.phone         || '';
+  document.getElementById('t-location').value = t.base_location || '';
+  document.getElementById('t-zip').value      = t.zip_code      || '';
+  document.getElementById('t-radius').value   = t.work_radius   || '';
+  document.getElementById('t-skills').value   = (t.skills||[]).join(', ');
+  document.getElementById('t-exp').value      = t.experience_level || 'mid';
+  document.getElementById('t-status').value   = t.status        || 'approved';
+  document.getElementById('t-bio').value      = t.bio           || '';
+  openTechModal(false);
+}
+
+async function saveTech() {
+  const id = document.getElementById('tech-id').value;
+  const skillsRaw = document.getElementById('t-skills').value;
+  const payload = {
+    name:             document.getElementById('t-name').value.trim(),
+    email:            document.getElementById('t-email').value.trim(),
+    phone:            document.getElementById('t-phone').value.trim(),
+    base_location:    document.getElementById('t-location').value.trim(),
+    zip_code:         document.getElementById('t-zip').value.trim(),
+    work_radius:      parseFloat(document.getElementById('t-radius').value) || 25,
+    skills:           skillsRaw.split(',').map(s=>s.trim()).filter(Boolean),
+    experience_level: document.getElementById('t-exp').value,
+    status:           document.getElementById('t-status').value,
+    bio:              document.getElementById('t-bio').value.trim()
+  };
+  const { error } = id
+    ? await sb.from('technicians').update(payload).eq('id', id)
+    : await sb.from('technicians').insert([{ id: crypto.randomUUID(), ...payload }]);
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  toast('Technician saved ✓', 'success');
+  closeModal('tech-modal');
+  loadTechnicians();
+}
+
+function populateTechSelect() {
+  const sel = document.getElementById('wo-tech');
+  sel.innerHTML = '<option value="">— Unassigned —</option>' +
+    allTechs.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+}
+
+// ── APPROVALS ─────────────────────────────────────────────────────────
+async function loadApprovals() {
+  const { data } = await sb.from('technicians').select('*').eq('status','pending_review').order('created_at',{ascending:false});
+  const container = document.getElementById('approvals-list');
+
+  if (!data?.length) {
+    container.innerHTML = '<div style="color:var(--muted);padding:24px;text-align:center">No pending applications 🎉</div>';
+    return;
+  }
+
+  container.innerHTML = data.map(t => `
+    <div class="approval-card">
+      <div class="approval-info">
+        <div class="approval-name">${t.name}</div>
+        <div class="approval-meta">${t.email} · ${t.phone || '—'} · ${t.base_location || '—'} · ${t.work_radius || '—'} mi radius</div>
+        <div class="approval-meta" style="margin-top:4px">Skills: ${(t.skills||[]).join(', ') || '—'} · Exp: ${t.experience_level || '—'}</div>
+        ${t.bio ? `<div class="approval-meta" style="margin-top:4px;font-style:italic">"${t.bio}"</div>` : ''}
+        <div class="approval-meta" style="margin-top:4px">
+          ${t.signed_msa_url ? '<span class="badge green">MSA ✓</span> ' : '<span class="badge red">MSA missing</span> '}
+          ${t.signed_w9_url  ? '<span class="badge green">W9 ✓</span> '  : '<span class="badge red">W9 missing</span> '}
+          ${t.signed_nda_url ? '<span class="badge green">NDA ✓</span>'  : '<span class="badge red">NDA missing</span>'}
+          ${t.id_front_url   ? ' <span class="badge green">ID ✓</span>'   : ' <span class="badge red">ID missing</span>'}
+        </div>
+      </div>
+      <div class="approval-actions">
+        <button class="btn btn-ghost btn-sm" onclick="viewDocs('${t.id}','${t.name}',${JSON.stringify({msa:t.signed_msa_url,w9:t.signed_w9_url,nda:t.signed_nda_url,id_front:t.id_front_url,id_back:t.id_back_url}).replace(/"/g,'&quot;')})"><i data-feather="folder"></i> View Docs</button>
+        <button class="btn btn-green btn-sm" onclick="approveTech('${t.id}','${t.name}','${t.email}')"><i data-feather="check"></i> Approve</button>
+        <button class="btn btn-red btn-sm" onclick="rejectTech('${t.id}','${t.name}','${t.email}')"><i data-feather="x"></i> Reject</button>
+      </div>
+    </div>`).join('');
+  feather.replace();
+}
+
+// ── VIEW DOCUMENTS ───────────────────────────────────────────────────
+const DOC_BUCKETS = {
+  msa:      'technician-msa',
+  w9:       'technician-w9',
+  nda:      'technician-nda',
+  id_front: 'technician-ids',
+  id_back:  'technician-ids'
+};
+const DOC_LABELS = {
+  msa:      '📄 Signed MSA',
+  w9:       '📄 Signed W-9',
+  nda:      '📄 Signed NDA',
+  id_front: '🪪 ID Front',
+  id_back:  '🪪 ID Back'
+};
+
+async function viewDocs(techId, techName, urlsJson) {
+  document.getElementById('docs-modal-name').textContent = techId + ' — ' + techName + ' Documents';
+  const list = document.getElementById('docs-list');
+  list.innerHTML = '<p style="color:var(--muted);font-size:13px">Generating secure links…</p>';
+  document.getElementById('docs-modal').classList.add('open');
+  feather.replace();
+
+  const urls = typeof urlsJson === 'string' ? JSON.parse(urlsJson) : urlsJson;
+  const rows = [];
+
+  for (const [key, storedPath] of Object.entries(urls)) {
+    if (!storedPath) {
+      rows.push(`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px">
+          <span style="font-size:13px">${DOC_LABELS[key] || key}</span>
+          <span class="badge red">Not uploaded</span>
+        </div>`);
+      continue;
+    }
+
+    // storedPath format: "bucket-name/uuid/slot.ext"
+    const bucket = DOC_BUCKETS[key];
+    const filePath = storedPath.replace(bucket + '/', '');
+
+    const { data, error } = await sb.storage
+      .from(bucket)
+      .createSignedUrl(filePath, 3600);
+
+    if (error || !data?.signedUrl) {
+      rows.push(`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px">
+          <span style="font-size:13px">${DOC_LABELS[key] || key}</span>
+          <span class="badge red">Error generating link</span>
+        </div>`);
+      continue;
+    }
+
+    rows.push(`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px">
+        <span style="font-size:13px;font-weight:600">${DOC_LABELS[key] || key}</span>
+        <a href="${data.signedUrl}" target="_blank" rel="noopener" class="btn btn-brand btn-sm" style="text-decoration:none">
+          <i data-feather="external-link"></i> View
+        </a>
+      </div>`);
+  }
+
+  list.innerHTML = rows.join('');
+  feather.replace();
+}
+
+async function approveTech(id, name, email) {
+  const { error } = await sb.from('technicians').update({ status: 'approved' }).eq('id', id);
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+
+  // Send approval notification via Edge Function
+  await notifyTech('approved', email, name);
+
+  toast(`${name} approved ✓`, 'success');
+  loadApprovals();
+  loadDashboard();
+}
+
+async function rejectTech(id, name, email) {
+  if (!confirm(`Reject application from ${name}?`)) return;
+  const { error } = await sb.from('technicians').update({ status: 'rejected' }).eq('id', id);
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+
+  await notifyTech('rejected', email, name);
+
+  toast(`${name} rejected`, 'error');
+  loadApprovals();
+  loadDashboard();
+}
+
+// ── WORK ORDERS ───────────────────────────────────────────────────────
+async function loadWorkOrders() {
+  let query = sb.from('work_orders').select('id,service_type,status,scheduled_at,address,clients(first_name,last_name),technicians(name)').order('created_at',{ascending:false});
+  const filter = document.getElementById('wo-filter')?.value;
+  if (filter) query = query.eq('status', filter);
+  const { data } = await query;
+
+  const tbody = document.getElementById('wo-tbody');
+  if (!data?.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">No work orders yet</td></tr>'; return; }
+  tbody.innerHTML = data.map(w => `
+    <tr>
+      <td style="color:var(--muted);font-size:11px">${w.id.slice(0,8)}</td>
+      <td>${w.clients ? w.clients.first_name + ' ' + w.clients.last_name : '—'}</td>
+      <td>${w.service_type || '—'}</td>
+      <td style="font-size:12px;color:var(--muted);max-width:140px">${w.address || '—'}</td>
+      <td>${statusBadge(w.status)}</td>
+      <td>${w.technicians ? w.technicians.name : '<span style="color:var(--muted)">Unassigned</span>'}</td>
+      <td>${w.scheduled_at ? new Date(w.scheduled_at).toLocaleString() : '—'}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="editWO('${w.id}')"><i data-feather="edit-2"></i></button>
+        <button class="btn btn-red btn-sm" onclick="deleteRow('work_orders','${w.id}',loadWorkOrders)"><i data-feather="trash-2"></i></button>
+      </td>
+    </tr>`).join('');
+  feather.replace();
+}
+
+function openWOModal(reset=true) {
+  if (reset) {
+    document.getElementById('wo-modal-title').textContent = 'New Work Order';
+    document.getElementById('wo-id').value = '';
+    ['wo-service','wo-address','wo-zip','wo-duration','wo-pay','wo-notes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('wo-status').value = 'open';
+    document.getElementById('wo-tech').value = '';
+    document.getElementById('wo-client').value = '';
+    document.getElementById('wo-scheduled').value = '';
+    document.getElementById('match-section').style.display = 'none';
+  }
+  document.getElementById('wo-modal').classList.add('open');
+}
+
+async function editWO(id) {
+  const { data: w } = await sb.from('work_orders').select('*').eq('id', id).single();
+  if (!w) return;
+  document.getElementById('wo-modal-title').textContent = 'Edit Work Order';
+  document.getElementById('wo-id').value       = w.id;
+  document.getElementById('wo-service').value  = w.service_type  || '';
+  document.getElementById('wo-address').value  = w.address       || '';
+  document.getElementById('wo-zip').value      = w.zip_code      || '';
+  document.getElementById('wo-duration').value = w.duration_hrs  || '';
+  document.getElementById('wo-pay').value      = w.pay_rate      || '';
+  document.getElementById('wo-notes').value    = w.notes         || '';
+  document.getElementById('wo-status').value   = w.status        || 'open';
+  document.getElementById('wo-tech').value     = w.technician_id || '';
+  document.getElementById('wo-client').value   = w.client_id     || '';
+  document.getElementById('wo-scheduled').value = w.scheduled_at
+    ? new Date(w.scheduled_at).toISOString().slice(0,16) : '';
+  document.getElementById('match-section').style.display = 'none';
+  openWOModal(false);
+}
+
+async function saveWO() {
+  const id         = document.getElementById('wo-id').value;
+  const techId     = document.getElementById('wo-tech').value;
+  const prevStatus = id ? (await sb.from('work_orders').select('status,technician_id').eq('id',id).single()).data : null;
+
+  const payload = {
+    client_id:      document.getElementById('wo-client').value   || null,
+    service_type:   document.getElementById('wo-service').value.trim(),
+    address:        document.getElementById('wo-address').value.trim(),
+    zip_code:       document.getElementById('wo-zip').value.trim(),
+    scheduled_at:   document.getElementById('wo-scheduled').value || null,
+    duration_hrs:   parseFloat(document.getElementById('wo-duration').value) || null,
+    pay_rate:       parseFloat(document.getElementById('wo-pay').value) || null,
+    status:         document.getElementById('wo-status').value,
+    technician_id:  techId || null,
+    notes:          document.getElementById('wo-notes').value.trim()
+  };
+
+  const { data: saved, error } = id
+    ? await (await sb.from('work_orders').update(payload).eq('id',id).select()).data && sb.from('work_orders').update(payload).eq('id',id).select().single()
+    : await sb.from('work_orders').insert([{ id: crypto.randomUUID(), ...payload }]).select().single();
+
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+
+  // Notify assigned tech if newly assigned
+  if (techId && (!prevStatus || prevStatus.technician_id !== techId)) {
+    const tech = allTechs.find(t => t.id === techId);
+    if (tech) {
+      await notifyAssigned(tech.email, tech.name, payload.service_type, payload.scheduled_at, payload.address);
+    }
+  }
+
+  // Notify nearby techs when a new open work order is created
+  if (!id && payload.status === 'open' && payload.zip_code) {
+    await notifyNearbyTechs(payload.zip_code, payload.service_type, payload.scheduled_at);
+  }
+
+  toast('Work order saved ✓', 'success');
+  closeModal('wo-modal');
+  loadWorkOrders();
+  loadDashboard();
+}
+
+// ── BEST TECH MATCHING ────────────────────────────────────────────────
+function findBestTechs() {
+  const service   = document.getElementById('wo-service').value.trim().toLowerCase();
+  const zip       = document.getElementById('wo-zip').value.trim();
+  const scheduled = document.getElementById('wo-scheduled').value;
+
+  if (!service) { toast('Enter a service type first', 'error'); return; }
+
+  const scored = allTechs.map(t => {
+    let score = 0;
+    const skills = (t.skills || []).map(s => s.toLowerCase());
+
+    // Skill match (0-50 pts)
+    const words = service.split(/\s+/);
+    const matchCount = words.filter(w => skills.some(s => s.includes(w) || w.includes(s))).length;
+    score += (matchCount / Math.max(words.length, 1)) * 50;
+
+    // Experience level (0-30 pts)
+    const expMap = { entry: 10, mid: 20, senior: 27, master: 30 };
+    score += expMap[t.experience_level] || 0;
+
+    // Zip proximity rough score (0-20 pts) — same prefix = closer
+    if (zip && t.zip_code) {
+      const overlap = [...zip].filter((c,i) => c === (t.zip_code||'')[i]).length;
+      score += (overlap / 5) * 20;
+    }
+
+    return { ...t, score: Math.round(score) };
+  }).sort((a,b) => b.score - a.score).slice(0, 5);
+
+  const listEl = document.getElementById('match-list');
+  listEl.innerHTML = scored.map((t, i) => `
+    <div class="match-card ${i === 0 ? 'top' : ''}" style="cursor:pointer" onclick="pickTech('${t.id}')">
+      <div class="match-info">
+        <div class="match-name">${i === 0 ? '⭐ ' : ''}${t.name}</div>
+        <div class="match-meta">${(t.skills||[]).join(', ')} · ${t.base_location || '—'} · ${t.work_radius||'—'} mi · ${t.experience_level || '—'}</div>
+      </div>
+      <div class="match-score">${t.score}<span style="font-size:12px;color:var(--muted)">/100</span></div>
+    </div>`).join('');
+
+  document.getElementById('match-section').style.display = 'block';
+  feather.replace();
+}
+
+function pickTech(id) {
+  document.getElementById('wo-tech').value = id;
+  toast('Technician selected ✓', 'success');
+}
+
+// ── NOTIFICATIONS (Edge Functions) ────────────────────────────────────
+async function notifyTech(type, email, name) {
+  try {
+    await sb.functions.invoke('notify-approval', {
+      body: { type, email, name }
+    });
+  } catch(e) { console.warn('Notification failed:', e); }
+}
+
+async function notifyAssigned(email, name, service, scheduled, address) {
+  try {
+    await sb.functions.invoke('notify-assigned', {
+      body: { email, name, service, scheduled, address }
+    });
+  } catch(e) { console.warn('Notify assigned failed:', e); }
+}
+
+async function notifyNearbyTechs(zip, service, scheduled) {
+  try {
+    await sb.functions.invoke('notify-nearby', {
+      body: { zip, service, scheduled }
+    });
+  } catch(e) { console.warn('Notify nearby failed:', e); }
+}
+
+// ── INFRACTIONS ──────────────────────────────────────────────────────
+async function loadInfractions() {
+  const filter = document.getElementById('inf-filter').value;
+  let query = sb.from('tech_infractions')
+    .select('*,technicians(id,name,email,status)')
+    .order('created_at',{ascending:false});
+  if (filter) query = query.eq('admin_decision', filter);
+
+  const { data } = await query;
+  const tbody = document.getElementById('inf-tbody');
+
+  if (!data?.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">No infraction reports found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map(i => `
+    <tr>
+      <td>
+        <strong>${i.technicians?.name || '—'}</strong>
+        <div style="font-size:11px;color:var(--muted)">${i.technicians?.email || ''}</div>
+      </td>
+      <td style="font-size:12px;color:var(--muted);text-transform:capitalize">${(i.submitted_by||'').replace('_',' ')}</td>
+      <td style="font-size:12px">${infractionLabel(i.infraction_type)}</td>
+      <td>${severityBadge(i.severity)}</td>
+      <td style="font-size:12px;max-width:200px">
+        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px" title="${(i.description||'').replace(/"/g,'&quot;')}">${i.description || '—'}</div>
+        ${i.work_order_id ? `<div style="font-size:10px;color:var(--muted)">WO: ${i.work_order_id.slice(0,8)}&hellip;</div>` : ''}
+      </td>
+      <td style="font-size:12px;text-transform:capitalize;color:var(--yellow)">${(i.recommendation||'').replace('_',' ')}</td>
+      <td style="font-size:11px;color:var(--muted)">${new Date(i.created_at).toLocaleDateString()}</td>
+      <td>
+        ${i.admin_decision === 'pending' ? `
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <button class="btn btn-sm btn-ghost" style="font-size:11px" onclick="makeDecision('${i.id}','${i.technicians?.id}','dismissed')">Dismiss</button>
+            <button class="btn btn-sm" style="font-size:11px;background:rgba(245,158,11,.2);color:var(--yellow);border:1px solid rgba(245,158,11,.3)" onclick="makeDecision('${i.id}','${i.technicians?.id}','warned')">Issue Warning</button>
+            <button class="btn btn-sm btn-red" style="font-size:11px" onclick="makeDecision('${i.id}','${i.technicians?.id}','suspended')">Suspend</button>
+            <button class="btn btn-sm btn-red" style="font-size:11px;font-weight:800" onclick="makeDecision('${i.id}','${i.technicians?.id}','removed')">Remove</button>
+          </div>` : decisionBadge(i.admin_decision)}
+      </td>
+    </tr>`).join('');
+  feather.replace();
+}
+
+async function makeDecision(infractionId, techId, decision) {
+  const labels = { dismissed:'Dismiss', warned:'Issue Warning', suspended:'Suspend', removed:'Remove from Platform' };
+  if (!confirm(`${labels[decision]} this technician?`)) return;
+
+  await sb.from('tech_infractions').update({
+    admin_decision: decision,
+    decided_at: new Date().toISOString()
+  }).eq('id', infractionId);
+
+  if (decision === 'suspended' || decision === 'removed') {
+    await sb.from('technicians').update({ status: decision }).eq('id', techId);
+  }
+
+  toast(`Decision recorded: ${labels[decision]} ✓`, 'success');
+  loadInfractions();
+  loadInfractionBadge();
+}
+
+function infractionLabel(t) {
+  const map = {
+    no_show:'No Show', unprofessional:'Unprofessional Conduct',
+    client_complaint:'Client Complaint', policy_violation:'Policy Violation',
+    fraud:'Fraudulent Activity', unsafe:'Safety Violation', other:'Other'
+  };
+  return map[t] || t || '—';
+}
+
+function severityBadge(s) {
+  const map   = { low:'yellow', medium:'red', high:'red' };
+  const label = { low:'⚠️ Low', medium:'🔶 Medium', high:'🔴 High' };
+  return `<span class="badge ${map[s]||'yellow'}">${label[s]||s}</span>`;
+}
+
+function decisionBadge(d) {
+  const map   = { pending:'yellow', dismissed:'blue', warned:'yellow', suspended:'red', removed:'red' };
+  const label = { pending:'Pending', dismissed:'Dismissed', warned:'Warning Issued', suspended:'Suspended', removed:'Removed' };
+  return `<span class="badge ${map[d]||'yellow'}">${label[d]||d}</span>`;
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────
+async function deleteRow(table, id, reload) {
+  if (!confirm('Are you sure you want to delete this record?')) return;
+  const { error } = await sb.from(table).delete().eq('id', id);
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  toast('Deleted ✓', 'success');
+  reload();
+}
+
+function filterTable(tbodyId, query) {
+  const q = query.toLowerCase();
+  const rows = document.getElementById(tbodyId).querySelectorAll('tr');
+  rows.forEach(r => {
+    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function statusBadge(status) {
+  const map = {
+    active:        '<span class="badge green">Active</span>',
+    approved:      '<span class="badge green">Approved</span>',
+    pending_review:'<span class="badge yellow">Pending</span>',
+    rejected:      '<span class="badge red">Rejected</span>',
+    suspended:     '<span class="badge red">Suspended</span>',
+    inactive:      '<span class="badge red">Inactive</span>',
+    open:          '<span class="badge blue">Open</span>',
+    assigned:      '<span class="badge pink">Assigned</span>',
+    in_progress:   '<span class="badge yellow">In Progress</span>',
+    completed:     '<span class="badge green">Completed</span>',
+    cancelled:     '<span class="badge red">Cancelled</span>'
+  };
+  return map[status] || `<span class="badge">${status}</span>`;
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+let toastTimer;
+function toast(msg, type='success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 3000);
+}
+</script>
+</body>
+</html>
