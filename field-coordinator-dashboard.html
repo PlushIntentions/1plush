@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Plush Intentions – Field Service Coordinator</title>
+<script src="https://unpkg.com/feather-icons"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --brand: #FF4F9F;
+  --brand2: #c8006e;
+  --accent: #a855f7;
+  --bg: #0d0d14;
+  --card: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.10);
+  --text: #fff;
+  --muted: rgba(255,255,255,0.5);
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #f59e0b;
+  --blue: #3b82f6;
+  --sidebar-w: 220px;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;font-family:Inter,sans-serif;}
+body{background:var(--bg);color:var(--text);display:flex;min-height:100vh;}
+
+/* SIDEBAR */
+#sidebar{width:var(--sidebar-w);min-height:100vh;background:rgba(255,255,255,0.04);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;}
+.sidebar-logo{padding:24px 20px 16px;font-size:14px;font-weight:800;color:var(--brand);display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);}
+.sidebar-role{padding:10px 20px;font-size:11px;color:var(--accent);font-weight:700;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);}
+.nav-item{display:flex;align-items:center;gap:10px;padding:12px 20px;font-size:13px;cursor:pointer;color:var(--muted);transition:all .2s;border:none;background:none;width:100%;text-align:left;}
+.nav-item:hover,.nav-item.active{color:#fff;background:rgba(255,79,159,0.12);}
+.nav-item.active{border-left:3px solid var(--brand);padding-left:17px;}
+.nav-item svg{width:15px;height:15px;flex-shrink:0;}
+.sidebar-bottom{margin-top:auto;padding:16px;}
+
+/* MAIN */
+#main{margin-left:var(--sidebar-w);flex:1;padding:32px;min-height:100vh;}
+.page{display:none;}.page.active{display:block;}
+.page-title{font-size:22px;font-weight:800;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px;margin-bottom:28px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;}
+.stat-card .label{font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px;}
+.stat-card .value{font-size:28px;font-weight:800;}
+.stat-card.accent{border-color:rgba(168,85,247,0.3);background:rgba(168,85,247,0.07);}
+
+/* TABLE */
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:24px;}
+.table-toolbar{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);gap:10px;flex-wrap:wrap;}
+.table-toolbar span{font-weight:700;font-size:14px;}
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;font-size:11px;font-weight:700;color:var(--muted);padding:11px 16px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.4px;}
+td{padding:12px 16px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,0.03);}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600;}
+.badge.green{background:rgba(34,197,94,.15);color:var(--green);}
+.badge.red{background:rgba(239,68,68,.15);color:var(--red);}
+.badge.yellow{background:rgba(245,158,11,.15);color:var(--yellow);}
+.badge.blue{background:rgba(59,130,246,.15);color:var(--blue);}
+.badge.purple{background:rgba(168,85,247,.15);color:var(--accent);}
+.badge.pink{background:rgba(255,79,159,.15);color:var(--brand);}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .2s;}
+.btn-brand{background:var(--brand);color:#fff;}.btn-brand:hover{background:var(--brand2);}
+.btn-ghost{background:rgba(255,255,255,0.07);color:#fff;border:1px solid var(--border);}.btn-ghost:hover{background:rgba(255,255,255,0.12);}
+.btn-green{background:rgba(34,197,94,.2);color:var(--green);border:1px solid rgba(34,197,94,.3);}
+.btn-red{background:rgba(239,68,68,.2);color:var(--red);border:1px solid rgba(239,68,68,.3);}
+.btn-purple{background:rgba(168,85,247,.2);color:var(--accent);border:1px solid rgba(168,85,247,.3);}
+.btn svg{width:13px;height:13px;}
+.search-input{background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:10px;padding:8px 13px;color:#fff;font-size:13px;}
+.search-input:focus{outline:none;border-color:var(--brand);}
+
+/* MODAL */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:500;display:none;align-items:center;justify-content:center;}
+.modal-backdrop.open{display:flex;}
+.modal{background:#1a1a2e;border:1px solid var(--border);border-radius:20px;padding:28px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;position:relative;}
+.modal h3{font-size:16px;font-weight:800;margin-bottom:18px;color:var(--brand);}
+.modal-close{position:absolute;top:14px;right:14px;background:rgba(255,255,255,0.07);border:none;color:#fff;border-radius:8px;padding:5px;cursor:pointer;display:flex;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group label{font-size:11px;color:var(--muted);font-weight:600;}
+.form-group input,.form-group select,.form-group textarea{background:rgba(255,255,255,0.07);border:1px solid var(--border);border-radius:10px;padding:9px 12px;color:#fff;font-size:13px;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--brand);}
+.form-group select option{background:#1a1a2e;}
+.form-group textarea{resize:vertical;min-height:70px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;right:24px;background:#1e1e2e;border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;z-index:9999;display:none;box-shadow:0 8px 30px rgba(0,0,0,0.4);}
+#toast.show{display:block;}
+#toast.success{border-color:var(--green);color:var(--green);}
+#toast.error{border-color:var(--red);color:var(--red);}
+
+/* TECH CARD */
+.tech-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.tech-info .name{font-size:14px;font-weight:700;}
+.tech-info .meta{font-size:12px;color:var(--muted);margin-top:3px;}
+.tech-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+@media(max-width:700px){#sidebar{display:none;}#main{margin-left:0;}}
+</style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <div class="sidebar-logo"><i data-feather="map-pin"></i> PI Field</div>
+  <div class="sidebar-role">📍 Field Coordinator</div>
+  <button class="nav-item active" onclick="nav('dashboard',this)"><i data-feather="grid"></i> Dashboard</button>
+  <button class="nav-item" onclick="nav('technicians',this)"><i data-feather="users"></i> Technicians</button>
+  <button class="nav-item" onclick="nav('dispatch',this)"><i data-feather="send"></i> Dispatch</button>
+  <button class="nav-item" onclick="nav('schedule',this)"><i data-feather="calendar"></i> Schedule</button>
+  <button class="nav-item" onclick="nav('checkin',this)"><i data-feather="check-square"></i> Check-ins</button>
+  <button class="nav-item" onclick="nav('infractions',this)"><i data-feather="alert-triangle"></i> Flag for Removal <span id="infraction-badge" style="margin-left:auto;background:var(--red);border-radius:100px;font-size:10px;padding:1px 7px;display:none"></span></button>
+  <div class="sidebar-bottom">
+    <button class="btn btn-ghost" style="width:100%;font-size:12px" onclick="doLogout()"><i data-feather="log-out"></i> Sign Out</button>
+  </div>
+</nav>
+
+<main id="main">
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-title">Field Overview</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Active Techs Today</div><div class="value" id="s-active">—</div></div>
+      <div class="stat-card accent"><div class="label">Jobs In Progress</div><div class="value" id="s-inprog">—</div></div>
+      <div class="stat-card"><div class="label">Completed Today</div><div class="value" id="s-done">—</div></div>
+      <div class="stat-card"><div class="label">Unassigned Jobs</div><div class="value" id="s-unassigned">—</div></div>
+    </div>
+    <div class="table-wrap">
+      <div class="table-toolbar"><span>Today's Active Jobs</span></div>
+      <table><thead><tr><th>Technician</th><th>Service</th><th>Area / Zip</th><th>Scheduled</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody id="dash-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- TECHNICIANS -->
+  <div class="page" id="page-technicians">
+    <div class="page-title">Field Technicians
+      <input class="search-input" placeholder="Search…" oninput="filterTechs(this.value)"/>
+    </div>
+    <div id="tech-list"><p style="color:var(--muted)">Loading…</p></div>
+  </div>
+
+  <!-- DISPATCH -->
+  <div class="page" id="page-dispatch">
+    <div class="page-title">Dispatch Open Jobs</div>
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <span>Unassigned Work Orders</span>
+        <select class="search-input" id="dispatch-zip-filter" onchange="loadDispatch()" style="width:160px">
+          <option value="">All Areas</option>
+        </select>
+      </div>
+      <table><thead><tr><th>Service</th><th>Address</th><th>Zip</th><th>Scheduled</th><th>Pay</th><th>Assign</th></tr></thead>
+      <tbody id="dispatch-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- SCHEDULE -->
+  <div class="page" id="page-schedule">
+    <div class="page-title">Tech Schedule</div>
+    <div class="table-wrap">
+      <div class="table-toolbar">
+        <span>Upcoming Assignments</span>
+        <input type="date" class="search-input" id="sched-date" onchange="loadSchedule()"/>
+      </div>
+      <table><thead><tr><th>Technician</th><th>Service</th><th>Address</th><th>Time</th><th>Duration</th><th>Status</th></tr></thead>
+      <tbody id="sched-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- INFRACTIONS -->
+  <div class="page" id="page-infractions">
+    <div class="page-title">Flag Technician for Removal</div>
+
+    <!-- SUBMIT NEW FLAG -->
+    <div style="max-width:620px;background:var(--card);border:1px solid rgba(239,68,68,0.3);border-radius:20px;padding:28px;margin-bottom:28px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+        <i data-feather="alert-triangle" style="color:var(--red);width:20px;height:20px"></i>
+        <h3 style="font-size:15px;font-weight:800;color:var(--red)">Submit Infraction Report</h3>
+      </div>
+      <div class="form-grid">
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Technician</label>
+          <select id="inf-tech-select"><option value="">— Select Technician —</option></select>
+        </div>
+        <div class="form-group">
+          <label>Infraction Type</label>
+          <select id="inf-type">
+            <option value="">— Select Type —</option>
+            <option value="no_show">No Show / Abandonment</option>
+            <option value="unprofessional">Unprofessional Conduct</option>
+            <option value="client_complaint">Client Complaint</option>
+            <option value="policy_violation">Policy Violation</option>
+            <option value="fraud">Fraudulent Activity</option>
+            <option value="unsafe">Safety Violation</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Severity</label>
+          <select id="inf-severity">
+            <option value="low">⚠️ Low — Monitor</option>
+            <option value="medium">🔶 Medium — Warning</option>
+            <option value="high">🔴 High — Recommend Removal</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Related Work Order (optional)</label>
+          <select id="inf-wo"><option value="">— None / Not Applicable —</option></select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Description of Incident</label>
+          <textarea id="inf-description" rows="4" placeholder="Describe the infraction in detail — what happened, when, who was involved, any client impact…"></textarea>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Recommended Action</label>
+          <select id="inf-recommendation">
+            <option value="monitor">Monitor — No immediate action</option>
+            <option value="warning">Issue Formal Warning</option>
+            <option value="suspend">Suspend Temporarily</option>
+            <option value="remove">Remove from Platform</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+        <button class="btn btn-ghost" onclick="clearInfraction()">Clear</button>
+        <button class="btn btn-red" onclick="submitInfraction()"><i data-feather="send"></i> Submit to Admin for Review</button>
+      </div>
+    </div>
+
+    <!-- MY SUBMITTED REPORTS -->
+    <div class="table-wrap">
+      <div class="table-toolbar"><span>My Submitted Reports</span></div>
+      <table><thead><tr><th>Technician</th><th>Type</th><th>Severity</th><th>Recommendation</th><th>Submitted</th><th>Admin Decision</th></tr></thead>
+      <tbody id="inf-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- CHECK-INS -->
+  <div class="page" id="page-checkin">
+    <div class="page-title">Tech Check-ins / Status Updates</div>
+    <div class="table-wrap">
+      <div class="table-toolbar"><span>Recent Status Changes</span></div>
+      <table><thead><tr><th>Technician</th><th>Work Order</th><th>Status Changed To</th><th>Time</th></tr></thead>
+      <tbody id="checkin-tbody"><tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+</main>
+
+<!-- ASSIGN MODAL -->
+<div class="modal-backdrop" id="assign-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('assign-modal')"><i data-feather="x"></i></button>
+    <h3>Assign Technician</h3>
+    <input type="hidden" id="assign-wo-id"/>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Work Order</label>
+      <div id="assign-wo-info" style="font-size:13px;color:var(--muted);padding:8px 0"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Select Technician</label>
+      <select id="assign-tech-select"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('assign-modal')">Cancel</button>
+      <button class="btn btn-brand" onclick="confirmAssign()">Assign & Notify</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+let sb, allTechs = [];
+
+window.addEventListener('load', async () => {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  feather.replace();
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { window.location.href = '/'; return; }
+  // Set today's date on schedule picker
+  document.getElementById('sched-date').value = new Date().toISOString().split('T')[0];
+  await loadTechsCache();
+  loadDashboard();
+});
+
+async function loadTechsCache() {
+  const { data } = await sb.from('technicians').select('*').eq('status','approved');
+  allTechs = data || [];
+  const sel = document.getElementById('assign-tech-select');
+  sel.innerHTML = '<option value="">— Select Tech —</option>' +
+    allTechs.map(t => `<option value="${t.id}">${t.name} · ${(t.skills||[]).slice(0,2).join(', ')} · ${t.base_location||''}</option>`).join('');
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────
+async function loadDashboard() {
+  const today = new Date().toISOString().split('T')[0];
+  const [
+    { count: inprog },
+    { count: done },
+    { count: unassigned },
+    { data: jobs }
+  ] = await Promise.all([
+    sb.from('work_orders').select('*',{count:'exact',head:true}).eq('status','in_progress'),
+    sb.from('work_orders').select('*',{count:'exact',head:true}).eq('status','completed').gte('updated_at', today),
+    sb.from('work_orders').select('*',{count:'exact',head:true}).eq('status','open').is('technician_id',null),
+    sb.from('work_orders').select('*,technicians(name),clients(first_name,last_name)')
+      .in('status',['assigned','in_progress']).gte('scheduled_at', today+'T00:00:00').lte('scheduled_at', today+'T23:59:59')
+  ]);
+  document.getElementById('s-active').textContent   = allTechs.length;
+  document.getElementById('s-inprog').textContent   = inprog ?? 0;
+  document.getElementById('s-done').textContent     = done ?? 0;
+  document.getElementById('s-unassigned').textContent = unassigned ?? 0;
+
+  const tbody = document.getElementById('dash-tbody');
+  if (!jobs?.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No active jobs today</td></tr>'; return; }
+  tbody.innerHTML = jobs.map(j => `
+    <tr>
+      <td><strong>${j.technicians?.name || '—'}</strong></td>
+      <td>${j.service_type}</td>
+      <td>${j.zip_code || j.address?.split(',').pop()?.trim() || '—'}</td>
+      <td>${j.scheduled_at ? new Date(j.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—'}</td>
+      <td>${statusBadge(j.status)}</td>
+      <td><button class="btn btn-purple" onclick="updateStatus('${j.id}','${j.status}')"><i data-feather="refresh-cw"></i> Update</button></td>
+    </tr>`).join('');
+  feather.replace();
+}
+
+// ── TECHNICIANS ───────────────────────────────────────────
+async function loadTechniciansList() {
+  const list = document.getElementById('tech-list');
+  if (!allTechs.length) { list.innerHTML = '<p style="color:var(--muted)">No approved technicians found.</p>'; return; }
+  renderTechs(allTechs);
+}
+
+function renderTechs(techs) {
+  const list = document.getElementById('tech-list');
+  list.innerHTML = techs.map(t => `
+    <div class="tech-card">
+      <div class="tech-info">
+        <div class="name">${t.name}</div>
+        <div class="meta">${t.email || ''} · ${t.phone || ''} · ${t.base_location || ''} · ${t.work_radius || 25}mi radius</div>
+        <div class="meta" style="margin-top:4px">${(t.skills||[]).map(s=>`<span class="badge blue" style="margin-right:4px">${s}</span>`).join('')}</div>
+      </div>
+      <div class="tech-actions">
+        <span class="badge ${t.status==='approved'?'green':t.status==='suspended'?'red':'yellow'}">${t.status}</span>
+      </div>
+    </div>`).join('');
+}
+
+function filterTechs(q) {
+  const filtered = allTechs.filter(t =>
+    t.name?.toLowerCase().includes(q.toLowerCase()) ||
+    (t.skills||[]).join(' ').toLowerCase().includes(q.toLowerCase()) ||
+    t.base_location?.toLowerCase().includes(q.toLowerCase())
+  );
+  renderTechs(filtered);
+}
+
+// ── DISPATCH ──────────────────────────────────────────────
+async function loadDispatch() {
+  const zipFilter = document.getElementById('dispatch-zip-filter').value;
+  let query = sb.from('work_orders').select('*').eq('status','open').is('technician_id',null);
+  if (zipFilter) query = query.eq('zip_code', zipFilter);
+  const { data } = await query.order('scheduled_at',{ascending:true});
+
+  // Populate zip filter options
+  if (!zipFilter) {
+    const zips = [...new Set((data||[]).map(w=>w.zip_code).filter(Boolean))];
+    const sel = document.getElementById('dispatch-zip-filter');
+    sel.innerHTML = '<option value="">All Areas</option>' + zips.map(z=>`<option value="${z}">${z}</option>`).join('');
+  }
+
+  const tbody = document.getElementById('dispatch-tbody');
+  if (!data?.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No unassigned jobs</td></tr>'; return; }
+  tbody.innerHTML = data.map(w => `
+    <tr>
+      <td><strong>${w.service_type}</strong></td>
+      <td style="font-size:12px;color:var(--muted)">${w.address || '—'}</td>
+      <td>${w.zip_code || '—'}</td>
+      <td>${w.scheduled_at ? new Date(w.scheduled_at).toLocaleString([],{dateStyle:'short',timeStyle:'short'}) : '—'}</td>
+      <td style="color:var(--green);font-weight:700">${w.pay_rate ? '$'+w.pay_rate : '—'}</td>
+      <td><button class="btn btn-brand" onclick="openAssign('${w.id}','${w.service_type}','${w.zip_code||''}')"><i data-feather="user-plus"></i> Assign</button></td>
+    </tr>`).join('');
+  feather.replace();
+}
+
+function openAssign(woId, service, zip) {
+  document.getElementById('assign-wo-id').value = woId;
+  document.getElementById('assign-wo-info').textContent = `${service} · Zip: ${zip || 'N/A'}`;
+  document.getElementById('assign-modal').classList.add('open');
+  feather.replace();
+}
+
+async function confirmAssign() {
+  const woId   = document.getElementById('assign-wo-id').value;
+  const techId = document.getElementById('assign-tech-select').value;
+  if (!techId) { toast('Please select a technician', 'error'); return; }
+
+  const { error } = await sb.from('work_orders').update({
+    technician_id: techId, status: 'assigned'
+  }).eq('id', woId);
+
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+
+  // Trigger email notification
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/notify-assigned`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ work_order_id: woId, technician_id: techId })
+    });
+  } catch(e) {}
+
+  toast('Technician assigned & notified ✓', 'success');
+  closeModal('assign-modal');
+  loadDispatch();
+  loadDashboard();
+}
+
+// ── SCHEDULE ──────────────────────────────────────────────
+async function loadSchedule() {
+  const date = document.getElementById('sched-date').value;
+  const { data } = await sb.from('work_orders')
+    .select('*,technicians(name),clients(first_name,last_name)')
+    .not('technician_id','is',null)
+    .gte('scheduled_at', date+'T00:00:00')
+    .lte('scheduled_at', date+'T23:59:59')
+    .order('scheduled_at',{ascending:true});
+
+  const tbody = document.getElementById('sched-tbody');
+  if (!data?.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No scheduled jobs for this date</td></tr>'; return; }
+  tbody.innerHTML = data.map(w => `
+    <tr>
+      <td><strong>${w.technicians?.name || '—'}</strong></td>
+      <td>${w.service_type}</td>
+      <td style="font-size:12px;color:var(--muted)">${w.address || '—'}</td>
+      <td>${new Date(w.scheduled_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
+      <td>${w.duration_hrs || '—'} hrs</td>
+      <td>${statusBadge(w.status)}</td>
+    </tr>`).join('');
+  feather.replace();
+}
+
+// ── INFRACTIONS ──────────────────────────────────────────────────────────
+async function loadInfractions() {
+  // Populate tech select
+  const sel = document.getElementById('inf-tech-select');
+  sel.innerHTML = '<option value="">— Select Technician —</option>' +
+    allTechs.map(t => `<option value="${t.id}">${t.name} · ${(t.skills||[]).slice(0,2).join(', ')}</option>`).join('');
+
+  // Populate WO select with recent work orders
+  const { data: wos } = await sb.from('work_orders')
+    .select('id,service_type,scheduled_at,technicians(name)')
+    .not('technician_id','is',null)
+    .order('scheduled_at',{ascending:false})
+    .limit(30);
+  const woSel = document.getElementById('inf-wo');
+  woSel.innerHTML = '<option value="">— None / Not Applicable —</option>' +
+    (wos||[]).map(w => `<option value="${w.id}">${w.service_type} · ${w.technicians?.name||'?'} · ${w.scheduled_at ? new Date(w.scheduled_at).toLocaleDateString() : ''}</option>`).join('');
+
+  // Load submitted reports
+  const { data } = await sb.from('tech_infractions')
+    .select('*,technicians(name)')
+    .order('created_at',{ascending:false});
+
+  // Update badge
+  const pending = (data||[]).filter(i => i.admin_decision === 'pending').length;
+  const badge = document.getElementById('infraction-badge');
+  if (pending > 0) { badge.textContent = pending; badge.style.display = 'inline'; }
+  else badge.style.display = 'none';
+
+  const tbody = document.getElementById('inf-tbody');
+  if (!data?.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No reports submitted yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(i => `
+    <tr>
+      <td><strong>${i.technicians?.name || '—'}</strong></td>
+      <td>${infractionLabel(i.infraction_type)}</td>
+      <td>${severityBadge(i.severity)}</td>
+      <td style="font-size:12px;color:var(--muted)">${i.recommendation?.replace('_',' ')}</td>
+      <td style="font-size:12px;color:var(--muted)">${new Date(i.created_at).toLocaleDateString()}</td>
+      <td>${decisionBadge(i.admin_decision)}</td>
+    </tr>`).join('');
+  feather.replace();
+}
+
+async function submitInfraction() {
+  const techId = document.getElementById('inf-tech-select').value;
+  const type   = document.getElementById('inf-type').value;
+  const desc   = document.getElementById('inf-description').value.trim();
+  if (!techId) { toast('Please select a technician', 'error'); return; }
+  if (!type)   { toast('Please select an infraction type', 'error'); return; }
+  if (!desc)   { toast('Please describe the incident', 'error'); return; }
+
+  const payload = {
+    technician_id:   techId,
+    infraction_type: type,
+    severity:        document.getElementById('inf-severity').value,
+    work_order_id:   document.getElementById('inf-wo').value || null,
+    description:     desc,
+    recommendation:  document.getElementById('inf-recommendation').value,
+    admin_decision:  'pending',
+    submitted_by:    'field_coordinator'
+  };
+
+  const { error } = await sb.from('tech_infractions').insert([payload]);
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+
+  toast('Report submitted to admin for review ✓', 'success');
+  clearInfraction();
+  loadInfractions();
+}
+
+function clearInfraction() {
+  document.getElementById('inf-tech-select').selectedIndex = 0;
+  document.getElementById('inf-type').selectedIndex = 0;
+  document.getElementById('inf-severity').selectedIndex = 0;
+  document.getElementById('inf-wo').selectedIndex = 0;
+  document.getElementById('inf-description').value = '';
+  document.getElementById('inf-recommendation').selectedIndex = 0;
+}
+
+function infractionLabel(t) {
+  const map = {
+    no_show:'No Show', unprofessional:'Unprofessional Conduct',
+    client_complaint:'Client Complaint', policy_violation:'Policy Violation',
+    fraud:'Fraudulent Activity', unsafe:'Safety Violation', other:'Other'
+  };
+  return map[t] || t;
+}
+
+function severityBadge(s) {
+  const map = { low:'yellow', medium:'red', high:'red' };
+  const label = { low:'⚠️ Low', medium:'🔶 Medium', high:'🔴 High' };
+  return `<span class="badge ${map[s]||'yellow'}">${label[s]||s}</span>`;
+}
+
+function decisionBadge(d) {
+  const map = { pending:'yellow', dismissed:'blue', warned:'purple', suspended:'red', removed:'red' };
+  const label = { pending:'Pending Review', dismissed:'Dismissed', warned:'Warning Issued', suspended:'Suspended', removed:'Removed' };
+  return `<span class="badge ${map[d]||'yellow'}">${label[d]||d}</span>`;
+}
+
+// ── CHECK-INS ─────────────────────────────────────────────
+async function loadCheckins() {
+  const { data } = await sb.from('work_orders')
+    .select('*,technicians(name)')
+    .in('status',['in_progress','completed'])
+    .order('updated_at',{ascending:false})
+    .limit(20);
+
+  const tbody = document.getElementById('checkin-tbody');
+  if (!data?.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">No recent updates</td></tr>'; return; }
+  tbody.innerHTML = data.map(w => `
+    <tr>
+      <td><strong>${w.technicians?.name || '—'}</strong></td>
+      <td style="font-size:12px;color:var(--muted)">${w.service_type}</td>
+      <td>${statusBadge(w.status)}</td>
+      <td style="font-size:12px;color:var(--muted)">${new Date(w.updated_at).toLocaleString([],{dateStyle:'short',timeStyle:'short'})}</td>
+    </tr>`).join('');
+  feather.replace();
+}
+
+// ── STATUS UPDATE ─────────────────────────────────────────
+async function updateStatus(id, current) {
+  const next = { assigned:'in_progress', in_progress:'completed', open:'assigned' }[current] || current;
+  const { error } = await sb.from('work_orders').update({ status: next }).eq('id', id);
+  if (error) { toast('Error: ' + error.message, 'error'); return; }
+  toast(`Status updated to ${next} ✓`, 'success');
+  loadDashboard();
+}
+
+// ── HELPERS ───────────────────────────────────────────────
+function nav(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  el.classList.add('active');
+  if (page === 'technicians') loadTechniciansList();
+  if (page === 'dispatch')    loadDispatch();
+  if (page === 'schedule')    loadSchedule();
+  if (page === 'checkin')     loadCheckins();
+  if (page === 'infractions') loadInfractions();
+}
+
+function statusBadge(s) {
+  const map = { open:'blue', assigned:'yellow', in_progress:'purple', completed:'green', cancelled:'red' };
+  return `<span class="badge ${map[s]||'blue'}">${s?.replace('_',' ')}</span>`;
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show ' + type;
+  setTimeout(() => t.className = '', 3000);
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  window.location.href = '/';
+}
+</script>
+</body>
+</html>
