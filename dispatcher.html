@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dispatcher Portal</title>
+  <link rel="stylesheet" href="dispatcher.css">
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <header id="header">
+    <h1>Dispatcher Portal</h1>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main id="content">
+
+    <!-- DASHBOARD SECTION -->
+    <section id="dashboardSection" class="section active">
+      <div class="card" id="todayJobsCard"></div>
+      <div class="card" id="unassignedCard"></div>
+      <div class="card" id="techOnlineCard"></div>
+    </section>
+
+    <!-- WORK ORDERS SECTION -->
+    <section id="workOrdersSection" class="section hidden">
+      <table id="workOrdersTable"></table>
+    </section>
+
+  </main>
+
+  <!-- PANELS -->
+  <div id="jobPanel" class="panel hidden"></div>
+  <div id="techPanel" class="panel hidden"></div>
+  <div id="mapPanel" class="panel hidden"></div>
+  <div id="schedulePanel" class="panel hidden"></div>
+
+  <script type="module" src="dispatcher.js"></script>
+</body>
+</html>
