@@ -1,4 +1,4 @@
-const SUPABASE_URL  = "https://fytxyfaxewkxbqozcyie.supabase.co";
+const SUPABASE_URL  = "https://iazvpykfdckpffhakncd.supabase.co";
 const SUPABASE_KEY  = "sb_publishable_GoM0st4BrDFmInlOJQZy4A_bny1Nzrw";
 const MAPBOX_TOKEN  = "pk.eyJ1IjoicGx1c2gtaW50ZW50aW9ucyIsImEiOiJjbXA5ejJlcGwwMzQxMnJwdXBpZTg5NmYxIn0.i0wFsO5_bt70k942AsMNcg";
 
