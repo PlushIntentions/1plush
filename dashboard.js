@@ -3,10 +3,11 @@ const SUPABASE_KEY  = "sb_publishable_GoM0st4BrDFmInlOJQZy4A_bny1Nzrw";
 const MAPBOX_TOKEN  = "pk.eyJ1IjoicGx1c2gtaW50ZW50aW9ucyIsImEiOiJjbXA5ejJlcGwwMzQxMnJwdXBpZTg5NmYxIn0.i0wFsO5_bt70k942AsMNcg";
 
 let sb, map;
-let allJobs = [], allTechs = [], allClients = [];
+let allJobs = [], allTechs = [], allClients = [], allInfractions = [];
 let techMarkers = {}, jobMarkers = [];
 let assigningJobId = null;
 let currentPanel = "map";
+let woFilter = "all";
 
 window.addEventListener("load", async () => {
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -27,8 +28,7 @@ function startClock() {
   const tick = () => {
     el.textContent = new Date().toLocaleTimeString("en-US", { hour:"2-digit", minute:"2-digit", second:"2-digit" });
   };
-  tick();
-  setInterval(tick, 1000);
+  tick(); setInterval(tick, 1000);
 }
 
 function initMap() {
@@ -39,16 +39,19 @@ function initMap() {
 }
 
 async function loadAll() {
-  const [jobsRes, techsRes, clientsRes] = await Promise.all([
+  const [jobsRes, techsRes, clientsRes, infractionsRes] = await Promise.all([
     sb.from("jobs").select(`id,title,description,status,priority,technician_id,scheduled_date,scheduled_time,start_time,completed_time,notes,created_at,clients(id,name,address,phone,city,lat,lng)`).order("created_at",{ascending:false}),
     sb.from("technicians").select("*").order("name"),
-    sb.from("clients").select("*").order("name")
+    sb.from("clients").select("*").order("name"),
+    sb.from("infractions").select(`id,technician_id,reported_by,description,severity,status,created_at,technicians(name)`).order("created_at",{ascending:false})
   ]);
-  allJobs    = jobsRes.data    || [];
-  allTechs   = techsRes.data   || [];
-  allClients = clientsRes.data || [];
-  updateStats(); renderAllJobs(); renderPendingJobs();
-  renderTechs(); renderClients(); renderCompleted(); plotMap();
+  allJobs        = jobsRes.data        || [];
+  allTechs       = techsRes.data       || [];
+  allClients     = clientsRes.data     || [];
+  allInfractions = infractionsRes.data || [];
+  updateStats(); renderAllJobs(); renderPendingJobs(); renderTechs();
+  renderClients(); renderCompleted(); renderApprovals();
+  renderWorkOrders(); renderInfractions(); plotMap(); updateNavBadges();
 }
 
 function updateStats() {
@@ -56,6 +59,15 @@ function updateStats() {
   document.getElementById("stat-active").textContent  = allJobs.filter(j=>j.status==="active").length;
   document.getElementById("stat-pending").textContent = allJobs.filter(j=>j.status==="pending").length;
   document.getElementById("stat-techs").textContent   = allTechs.filter(t=>t.status==="active").length;
+}
+
+function updateNavBadges() {
+  const pa = allTechs.filter(t=>t.status==="pending_review").length;
+  const oi = allInfractions.filter(i=>i.status==="open").length;
+  const ab = document.getElementById("nav-badge-approvals");
+  const ib = document.getElementById("nav-badge-infractions");
+  if (ab) { ab.textContent = pa>0?pa:""; ab.style.display = pa>0?"inline-flex":"none"; }
+  if (ib) { ib.textContent = oi>0?oi:""; ib.style.display = oi>0?"inline-flex":"none"; }
 }
 
 function renderAllJobs() {
@@ -88,8 +100,7 @@ function renderCompleted() {
 }
 
 function buildJobCard(job, showAssign=false) {
-  const div = document.createElement("div");
-  div.className = "data-card";
+  const div = document.createElement("div"); div.className = "data-card";
   const tech = allTechs.find(t=>t.user_id===job.technician_id);
   const techName = tech ? tech.name : "Unassigned";
   const prioClass = {urgent:"prio-urgent",high:"prio-high",normal:"prio-normal",low:"prio-low"}[job.priority]||"prio-normal";
@@ -102,8 +113,7 @@ function buildJobCard(job, showAssign=false) {
   const assignBtn = (job.status==="pending"||!job.technician_id)
     ? `<button class="btn-sm btn-assign" onclick="openAssign('${job.id}','${(job.title||"").replace(/'/g,"\\'")}')"><i data-feather="user-plus"></i> Assign</button>` : "";
   div.innerHTML = `
-    ${statusPill}
-    <h3>${job.title||"Untitled Job"}</h3>
+    ${statusPill}<h3>${job.title||"Untitled Job"}</h3>
     <div class="meta-grid">
       <div class="meta-item"><div class="mlabel">Client</div><div class="mval">${job.clients?.name||"—"}</div></div>
       <div class="meta-item"><div class="mlabel">Technician</div><div class="mval">${techName}</div></div>
@@ -126,7 +136,7 @@ function renderTechs() {
   if (!allTechs.length) { el.innerHTML = emptyState("users","No technicians yet"); return; }
   allTechs.forEach(tech => {
     const jobCount = allJobs.filter(j=>j.technician_id===tech.user_id&&j.status==="active").length;
-    const isLive   = tech.last_seen&&(Date.now()-new Date(tech.last_seen).getTime())<300000;
+    const isLive = tech.last_seen&&(Date.now()-new Date(tech.last_seen).getTime())<300000;
     const statusPill = {
       active:`<span class="pill pill-aactive">● Active</span>`,
       pending_review:`<span class="pill pill-pr">⏳ Pending Review</span>`,
@@ -134,13 +144,10 @@ function renderTechs() {
       suspended:`<span class="pill pill-cancelled">✕ Suspended</span>`
     }[tech.status]||"";
     const skills = (tech.skills||[]).slice(0,3).map(s=>`<span class="skill-tag">${s}</span>`).join("");
-    const card = document.createElement("div");
-    card.className = "tech-card";
+    const card = document.createElement("div"); card.className = "tech-card";
     card.innerHTML = `
       <div class="tech-avatar">${(tech.name||"?").charAt(0).toUpperCase()}</div>
-      <div class="tech-info">
-        <h3>${tech.name}</h3>
-        <div style="margin-bottom:5px">${statusPill}</div>
+      <div class="tech-info"><h3>${tech.name}</h3><div style="margin-bottom:5px">${statusPill}</div>
         <div class="tech-meta">${tech.email||""} ${tech.phone?"· "+tech.phone:""}</div>
         <div class="tech-meta">${tech.city||""} ${tech.availability?"· "+cap(tech.availability):""}</div>
         <div class="tech-skills">${skills}</div>
@@ -168,6 +175,78 @@ function renderClients() {
   });
 }
 
+function renderApprovals() {
+  const pending = allTechs.filter(t=>t.status==="pending_review");
+  const el = document.getElementById("list-approvals");
+  document.getElementById("badge-approvals").textContent = pending.length;
+  el.innerHTML = "";
+  if (!pending.length) { el.innerHTML = emptyState("user-check","No pending approvals"); feather.replace(); return; }
+  pending.forEach(tech => {
+    const skills = (tech.skills||[]).map(s=>`<span class="skill-tag">${s}</span>`).join("");
+    const card = document.createElement("div"); card.className = "tech-card";
+    card.innerHTML = `
+      <div class="tech-avatar">${(tech.name||"?").charAt(0).toUpperCase()}</div>
+      <div class="tech-info" style="flex:1"><h3>${tech.name}</h3>
+        <div class="tech-meta">${tech.email||"—"} ${tech.phone?"· "+tech.phone:""}</div>
+        <div class="tech-meta">${tech.city||""}</div>
+        <div class="tech-meta" style="margin-top:2px">Applied: ${tech.created_at?fmtDate(tech.created_at):"—"}</div>
+        <div class="tech-skills" style="margin-top:6px">${skills}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0">
+        <button class="btn-sm btn-approve" onclick="approveTech('${tech.user_id}')"><i data-feather="check"></i> Approve</button>
+        <button class="btn-sm btn-danger"  onclick="rejectTech('${tech.user_id}')"><i data-feather="x"></i> Reject</button>
+      </div>`;
+    el.appendChild(card);
+  });
+  feather.replace();
+}
+
+function renderWorkOrders() {
+  const filtered = woFilter==="all" ? allJobs : allJobs.filter(j=>j.status===woFilter);
+  const el = document.getElementById("list-workorders");
+  document.getElementById("badge-workorders").textContent = allJobs.length;
+  el.innerHTML = "";
+  if (!filtered.length) { el.innerHTML = emptyState("clipboard",`No ${woFilter==="all"?"":""+woFilter+" "}work orders`); feather.replace(); return; }
+  filtered.forEach(job => el.appendChild(buildJobCard(job)));
+  feather.replace();
+}
+
+function filterWorkOrders(filter) {
+  woFilter = filter;
+  document.querySelectorAll(".filter-btn").forEach(b=>b.classList.toggle("active",b.dataset.filter===filter));
+  renderWorkOrders();
+}
+
+function renderInfractions() {
+  const el = document.getElementById("list-infractions");
+  document.getElementById("badge-infractions").textContent = allInfractions.length;
+  el.innerHTML = "";
+  if (!allInfractions.length) { el.innerHTML = emptyState("alert-triangle","No infraction reports found"); feather.replace(); return; }
+  allInfractions.forEach(inf => {
+    const sevClass = {high:"sev-high",medium:"sev-medium",low:"sev-low"}[inf.severity]||"sev-low";
+    const sevLabel = {high:"🔴 High",medium:"🟠 Medium",low:"🟡 Low"}[inf.severity]||"—";
+    const techName = inf.technicians?.name||"Unknown Technician";
+    const isOpen = inf.status==="open";
+    const card = document.createElement("div"); card.className = "data-card";
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span class="pill ${isOpen?"pill-pending":"pill-completed"}">${isOpen?"● Open":"✓ Resolved"}</span>
+        <span class="sev-pill ${sevClass}">${sevLabel}</span>
+      </div>
+      <h3>${techName}</h3>
+      <div class="meta-grid">
+        <div class="meta-item"><div class="mlabel">Reported By</div><div class="mval">${inf.reported_by||"—"}</div></div>
+        <div class="meta-item"><div class="mlabel">Date Reported</div><div class="mval">${inf.created_at?fmtDate(inf.created_at):"—"}</div></div>
+        <div class="meta-item" style="grid-column:1/-1"><div class="mlabel">Description</div><div class="mval" style="font-weight:400;opacity:.8;font-size:13px;margin-top:4px">${inf.description||"—"}</div></div>
+      </div>
+      <div class="card-actions">
+        ${isOpen?`<button class="btn-sm btn-approve" onclick="resolveInfraction('${inf.id}')"><i data-feather="check"></i> Mark Resolved</button>`:""}
+      </div>`;
+    el.appendChild(card);
+  });
+  feather.replace();
+}
+
 function plotMap() {
   if (!map) return;
   Object.values(techMarkers).forEach(m=>m.remove());
@@ -190,6 +269,7 @@ function subscribeRealtime() {
   sb.channel("admin-dash")
     .on("postgres_changes",{event:"*",schema:"public",table:"jobs"},()=>loadAll())
     .on("postgres_changes",{event:"*",schema:"public",table:"technicians"},()=>loadAll())
+    .on("postgres_changes",{event:"*",schema:"public",table:"infractions"},()=>loadAll())
     .subscribe();
 }
 
@@ -208,14 +288,24 @@ async function confirmAssign() {
   const techId=document.getElementById("modal-tech-select").value;
   if (!techId) { showToast("⚠️ Please select a technician."); return; }
   const {error}=await sb.from("jobs").update({technician_id:techId,status:"active",start_time:new Date().toISOString()}).eq("id",assigningJobId);
-  if (error) { showToast("❌ Failed to assign. Please try again."); return; }
+  if (error) { showToast("❌ Failed to assign."); return; }
   closeModal(); showToast("✅ Job assigned successfully!"); await loadAll();
 }
 
 async function approveTech(userId) {
   const {error}=await sb.from("technicians").update({status:"active"}).eq("user_id",userId);
-  if (error) { showToast("❌ Failed to approve technician."); return; }
+  if (error) { showToast("❌ Failed to approve."); return; }
   showToast("✅ Technician approved!"); await loadAll();
+}
+async function rejectTech(userId) {
+  const {error}=await sb.from("technicians").update({status:"rejected"}).eq("user_id",userId);
+  if (error) { showToast("❌ Failed to reject."); return; }
+  showToast("Technician rejected."); await loadAll();
+}
+async function resolveInfraction(id) {
+  const {error}=await sb.from("infractions").update({status:"resolved"}).eq("id",id);
+  if (error) { showToast("❌ Failed to resolve."); return; }
+  showToast("✅ Infraction marked resolved."); await loadAll();
 }
 
 const panelTitles = {
@@ -225,6 +315,9 @@ const panelTitles = {
   techs:["Technicians","All registered technician accounts"],
   clients:["Clients","Client contact and job history"],
   completed:["Completed Jobs","Successfully finished jobs"],
+  approvals:["Technician Approvals","Review and approve pending technician accounts"],
+  workorders:["Work Orders","All work orders with status filtering"],
+  infractions:["Infractions","Reported technician infractions and violations"],
   newjob:["New Work Order","Create a job — posts instantly to the technician dashboard"]
 };
 function showPanel(id) {
@@ -300,12 +393,12 @@ async function submitWorkOrder() {
       city:document.getElementById("nc-city").value.trim()||null,
       address:document.getElementById("nc-address").value.trim()||null
     }]).select().single();
-    if (ncErr) { showWoError("Failed to create client. Please try again."); resetBtn(); return; }
+    if (ncErr) { showWoError("Failed to create client."); resetBtn(); return; }
     clientId=newClient.id;
   } else { clientId=document.getElementById("wo-client-id").value||null; }
   const jobRecord={title,description:desc||null,priority:selectedPrio,status:techId?"active":"pending",technician_id:techId,client_id:clientId,scheduled_date:date||null,scheduled_time:time||null,notes:notes||null,start_time:techId?new Date().toISOString():null};
   const {error:jobErr}=await sb.from("jobs").insert([jobRecord]).select().single();
-  if (jobErr) { showWoError("Failed to create work order. Please try again."); resetBtn(); return; }
+  if (jobErr) { showWoError("Failed to create work order."); resetBtn(); return; }
   await loadAll();
   document.getElementById("wo-form").style.display="none";
   const successEl=document.getElementById("wo-success"); successEl.style.display="flex";
