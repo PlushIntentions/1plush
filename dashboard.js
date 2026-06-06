@@ -4,8 +4,8 @@
    !! REPLACE YOUR_ANON_KEY_HERE with your Supabase anon/public key
 ================================================================ */
 
-const SUPA_URL  = 'https://faithkncd.supabase.co';
-const SUPA_KEY  = 'YOUR_ANON_KEY_HERE';   // ← paste your anon key here
+const SUPA_URL  = 'https://iazvpykfdckpffhakncd.supabase.co';
+const SUPA_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhenZweWtmZGNrcGZmaGFrbmNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNzA0MTEsImV4cCI6MjA5NTg0NjQxMX0.OOXhS1zLez30isOszxP0XOIyndpJq2jwqE90eY649bA';   // ← paste your anon key here
 const MAPBOX_TK = 'pk.eyJ1IjoicGx1c2gtaW50ZW50aW9ucyIsImEiOiJjbXA5ejJlcGwwMzQxMnJwdXBpZTg5NmYxIn0.i0wFsO5_bt70k942AsMNcg';
 
 /* ── Supabase ───────────────────────────────────────────────── */
