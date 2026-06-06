@@ -572,11 +572,8 @@ function createUser() {
   }).then(function (res) {
     if (res.error) {
       var msg = res.error.message || 'Signup error';
-      if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('email')) {
-        msg = 'Email rate limit reached. In Supabase → Authentication → Settings, ' +
-              'disable "Enable email confirmations" to fix this.';
-      }
-      setError('cu-error', msg);
+      
+      setError('cu-error', msg)
       if (btn) { btn.disabled = false; btn.textContent = 'Create User'; }
       return;
     }
