@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Plush Intentions Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Feather Icons -->
+  <script src="https://unpkg.com/feather-icons"></script>
+
+  <style>
+    :root {
+      --bg: #050816;
+      --glass: rgba(15, 23, 42, 0.85);
+      --accent: #6366f1;
+      --accent-soft: rgba(99, 102, 241, 0.15);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: rgba(148, 163, 184, 0.25);
+      --danger: #f97373;
+      --success: #4ade80;
+      --warning: #facc15;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+    }
+
+    body {
+      background: radial-gradient(circle at top, #1e293b 0, #020617 55%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* LOADER */
+    #loader {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at top, #1e293b 0, #020617 55%);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      z-index: 2000;
+    }
+    .loader-logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      box-shadow: 0 0 40px rgba(129, 140, 248, 0.7);
+      margin-bottom: 16px;
+    }
+    .loader-text {
+      letter-spacing: 0.2em;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* BACKDROP */
+    .sidebar-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.7);
+      z-index: 900;
+      display: none;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .sidebar-backdrop.active {
+      display: block;
+      pointer-events: auto;
+      opacity: 1;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 260px;
+      background: var(--glass);
+      border-right: 1px solid var(--border);
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+      z-index: 1000;
+    }
+    .glass {
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .sidebar-stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .ss-card {
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-size: 11px;
+      border: 1px solid var(--border);
+      background: radial-gradient(circle at top, rgba(15, 23, 42, 0.9), #020617);
+    }
+    .ss-card .val {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .ss-card .lbl {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .ss-card.pink { border-color: rgba(244, 114, 182, 0.6); }
+    .ss-card.green { border-color: rgba(74, 222, 128, 0.6); }
+    .ss-card.yellow { border-color: rgba(250, 204, 21, 0.6); }
+    .ss-card.blue { border-color: rgba(96, 165, 250, 0.6); }
+
+    .nav-section {
+      margin-top: 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      margin-top: 4px;
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+    }
+    .nav-link i {
+      width: 16px;
+      height: 16px;
+    }
+    .nav-link:hover {
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text);
+      transform: translateY(-1px);
+    }
+    .nav-link.active {
+      background: var(--accent-soft);
+      color: #e0e7ff;
+      border: 1px solid rgba(129, 140, 248, 0.7);
+      box-shadow: 0 0 18px rgba(79, 70, 229, 0.45);
+    }
+    .nav-badge {
+      margin-left: auto;
+      background: rgba(248, 250, 252, 0.06);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .live-dot {
+      margin-left: auto;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.9);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .btn-signout {
+      border-radius: 999px;
+      border: 1px solid rgba(248, 113, 113, 0.6);
+      background: rgba(127, 29, 29, 0.4);
+      color: #fecaca;
+      padding: 6px 10px;
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .btn-signout i {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* MAIN AREA */
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .topbar {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(to right, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.7));
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      z-index: 500;
+    }
+    .topbar-title {
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .hamburger,
+    .topbar-refresh {
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.8);
+      color: var(--muted);
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .hamburger i,
+    .topbar-refresh i {
+      width: 16px;
+      height: 16px;
+    }
+
+    .mobile-stats-bar {
+      display: none;
+      padding: 8px 12px;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.9);
+    }
+    .msb-card {
+      flex: 1;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      font-size: 11px;
+    }
+    .msb-val {
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .msb-lbl {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* PANELS */
+    .panel {
+      display: none;
+      padding: 16px;
+      overflow-y: auto;
+      height: calc(100vh - 52px);
+    }
+    .panel.active {
+      display: block;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .panel-header h2 {
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .btn-primary {
+      border-radius: 999px;
+      border: 1px solid rgba(129, 140, 248, 0.8);
+      background: linear-gradient(to right, #4f46e5, #6366f1);
+      color: white;
+      padding: 6px 12px;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .btn-primary i {
+      width: 14px;
+      height: 14px;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+    }
+    .empty-state {
+      border-radius: 14px;
+      border: 1px dashed var(--border);
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      background: rgba(15, 23, 42, 0.7);
+    }
+    .empty-state i {
+      width: 20px;
+      height: 20px;
+      margin-bottom: 6px;
+    }
+
+    .table-wrap {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      background: rgba(15, 23, 42, 0.8);
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    table.data-table thead {
+      background: rgba(15, 23, 42, 0.9);
+    }
+    table.data-table th,
+    table.data-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(30, 41, 59, 0.9);
+    }
+    table.data-table th {
+      text-align: left;
+      font-weight: 500;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .empty-row {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .filter-tabs {
+      display: inline-flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      border-radius: 999px;
+      padding: 3px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border);
+    }
+    .filter-tab {
+      border-radius: 999px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    .filter-tab.active {
+      background: var(--accent-soft);
+      color: #e0e7ff;
+    }
+
+    .earnings-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .earn-card {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(15, 23, 42, 0.85);
+    }
+    .earn-icon i {
+      width: 18px;
+      height: 18px;
+    }
+    .earn-val {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .earn-lbl {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .earn-card.pink { border-color: rgba(244, 114, 182, 0.6); }
+    .earn-card.blue { border-color: rgba(96, 165, 250, 0.6); }
+    .earn-card.green { border-color: rgba(74, 222, 128, 0.6); }
+
+    .section-heading {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .form-card.glass {
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      padding: 16px;
+      background: rgba(15, 23, 42, 0.85);
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 900px) {
+      body {
+        flex-direction: column;
+      }
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: -280px;
+        height: 100%;
+        z-index: 1000;
+      }
+      .sidebar.open {
+        left: 0;
+      }
+      .mobile-stats-bar {
+        display: flex;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- LOADER -->
+  <div id="loader">
+    <img src="loader.png" class="loader-logo" alt="Plush Intentions" />
+    <div class="loader-text">LOADING DASHBOARD</div>
+  </div>
+
+  <!-- BACKDROP -->
+  <div id="sidebar-backdrop" class="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar glass" id="sidebar">
+    <div class="sidebar-stats">
+      <div class="ss-card pink"><div class="val" id="stat-jobs">–</div><div class="lbl">Jobs</div></div>
+      <div class="ss-card green"><div class="val" id="stat-active">–</div><div class="lbl">Active</div></div>
+      <div class="ss-card yellow"><div class="val" id="stat-pending">–</div><div class="lbl">Pending</div></div>
+      <div class="ss-card blue"><div class="val" id="stat-techs">–</div><div class="lbl">Techs</div></div>
+    </div>
+
+    <div class="nav-section">Navigation</div>
+
+    <div class="nav-link active" id="nav-map" onclick="showPanel('map')">
+      <i data-feather="map"></i> Live Map
+      <span class="live-dot"></span>
+    </div>
+    <div class="nav-link" id="nav-jobs" onclick="showPanel('jobs')">
+      <i data-feather="briefcase"></i> All Jobs
+    </div>
+    <div class="nav-link" id="nav-pending" onclick="showPanel('pending')">
+      <i data-feather="clock"></i> Pending Jobs
+      <span class="nav-badge" id="badge-pending"></span>
+    </div>
+    <div class="nav-link" id="nav-techs" onclick="showPanel('techs')">
+      <i data-feather="users"></i> Technicians
+    </div>
+    <div class="nav-link" id="nav-clients" onclick="showPanel('clients')">
+      <i data-feather="user"></i> Clients
+    </div>
+    <div class="nav-link" id="nav-completed" onclick="showPanel('completed')">
+      <i data-feather="check-circle"></i> Completed
+    </div>
+    <div class="nav-link" id="nav-approvals" onclick="showPanel('approvals')">
+      <i data-feather="user-check"></i> Approvals
+      <span class="nav-badge" id="badge-approvals"></span>
+    </div>
+    <div class="nav-link" id="nav-workorders" onclick="showPanel('workorders')">
+      <i data-feather="file-text"></i> Work Orders
+    </div>
+    <div class="nav-link" id="nav-infractions" onclick="showPanel('infractions')">
+      <i data-feather="alert-triangle"></i> Infractions
+      <span class="nav-badge" id="badge-infractions"></span>
+    </div>
+    <div class="nav-link" id="nav-earnings" onclick="showPanel('earnings')">
+      <i data-feather="dollar-sign"></i> Earnings &amp; Hours
+    </div>
+    <div class="nav-link" id="nav-usermgmt" onclick="showPanel('usermgmt')">
+      <i data-feather="settings"></i> User Management
+    </div>
+    <div class="nav-link" id="nav-newjob" onclick="showPanel('newjob')">
+      <i data-feather="plus-circle"></i> New Work Order
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="signed-in-email" id="signed-in-email">–</div>
+      <button class="btn-signout" onclick="signOut()">
+        <i data-feather="log-out"></i> Sign Out
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN AREA -->
+  <div class="main-area" id="main-area">
+
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <button class="hamburger" id="hamburger-btn" onclick="openSidebar()">
+        <i data-feather="menu"></i>
+      </button>
+      <div class="topbar-title" id="topbar-title">Live Map</div>
+      <button class="topbar-refresh" onclick="loadAllData()">
+        <i data-feather="refresh-cw"></i>
+      </button>
+    </div>
+
+    <!-- MOBILE STATS BAR -->
+    <div class="mobile-stats-bar">
+      <div class="msb-card"><div class="msb-val" id="m-stat-jobs">–</div><div class="msb-lbl">Jobs</div></div>
+      <div class="msb-card"><div class="msb-val" id="m-stat-active">–</div><div class="msb-lbl">Active</div></div>
+      <div class="msb-card"><div class="msb-val" id="m-stat-pending">–</div><div class="msb-lbl">Pending</div></div>
+      <div class="msb-card"><div class="msb-val" id="m-stat-techs">–</div><div class="msb-lbl">Techs</div></div>
+    </div>
+
+    <!-- PANELS -->
+
+    <!-- LIVE MAP -->
+    <div class="panel active" id="panel-map">
+      <div id="map-container" style="width:100%;height:100%;border-radius:16px;border:1px solid var(--border);background:#020617;"></div>
+    </div>
+
+    <!-- ALL JOBS -->
+    <div class="panel" id="panel-jobs">
+      <div class="panel-header">
+        <h2>All Jobs</h2>
+        <button class="btn-primary" onclick="showPanel('newjob')"><i data-feather="plus"></i> New Job</button>
+      </div>
+      <div class="card-grid" id="jobs-grid">
+        <div class="empty-state"><i data-feather="briefcase"></i><p>No jobs found</p></div>
+      </div>
+    </div>
+
+    <!-- PENDING JOBS -->
+    <div class="panel" id="panel-pending">
+      <div class="panel-header">
+        <h2>Pending Jobs</h2>
+      </div>
+      <div class="card-grid" id="pending-grid">
+        <div class="empty-state"><i data-feather="clock"></i><p>No pending jobs</p></div>
+      </div>
+    </div>
+
+    <!-- TECHNICIANS -->
+    <div class="panel" id="panel-techs">
+      <div class="panel-header">
+        <h2>Technicians</h2>
+      </div>
+      <div class="card-grid" id="techs-grid">
+        <div class="empty-state"><i data-feather="users"></i><p>No technicians found</p></div>
+      </div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div class="panel" id="panel-clients">
+      <div class="panel-header">
+        <h2>Clients</h2>
+        <button class="btn-primary" onclick="openCreateClientModal()"><i data-feather="plus"></i> New Client</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="clients-table">
+          <thead>
+            <tr><th>Name</th><th>Email</th><th>Phone</th><th>City</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="clients-tbody">
+            <tr><td colspan="5" class="empty-row">No clients found</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- COMPLETED -->
+    <div class="panel" id="panel-completed">
+      <div class="panel-header"><h2>Completed Jobs</h2></div>
+      <div class="card-grid" id="completed-grid">
+        <div class="empty-state"><i data-feather="check-circle"></i><p>No completed jobs</p></div>
+      </div>
+    </div>
+
+    <!-- APPROVALS -->
+    <div class="panel" id="panel-approvals">
+      <div class="panel-header"><h2>Pending Approvals</h2></div>
+      <div class="card-grid" id="approvals-grid">
+        <div class="empty-state"><i data-feather="user-check"></i><p>No pending approvals</p></div>
+      </div>
+    </div>
+
+    <!-- WORK ORDERS -->
+    <div class="panel" id="panel-workorders">
+      <div class="panel-header">
+        <h2>Work Orders</h2>
+      </div>
+      <div class="filter-tabs">
+        <button class="filter-tab active" onclick="filterWorkOrders('all',this)">All</button>
+        <button class="filter-tab" onclick="filterWorkOrders('pending',this)">Pending</button>
+        <button class="filter-tab" onclick="filterWorkOrders('active',this)">Active</button>
+        <button class="filter-tab" onclick="filterWorkOrders('completed',this)">Completed</button>
+      </div>
+      <div class="card-grid" id="workorders-grid">
+        <div class="empty-state"><i data-feather="file-text"></i><p>No work orders</p></div>
+      </div>
+    </div>
+
+    <!-- INFRACTIONS -->
+    <div class="panel" id="panel-infractions">
+      <div class="panel-header"><h2>Infractions</h2></div>
+      <div class="card-grid" id="infractions-grid">
+        <div class="empty-state"><i data-feather="alert-triangle"></i><p>No infractions recorded</p></div>
+      </div>
+    </div>
+
+    <!-- EARNINGS & HOURS -->
+    <div class="panel" id="panel-earnings">
+      <div class="panel-header"><h2>Earnings &amp; Hours</h2></div>
+
+      <div class="earnings-summary">
+        <div class="earn-card pink">
+          <div class="earn-icon"><i data-feather="dollar-sign"></i></div>
+          <div class="earn-val" id="earn-total">$0.00</div>
+          <div class="earn-lbl">Total Earnings</div>
+        </div>
+        <div class="earn-card blue">
+          <div class="earn-icon"><i data-feather="clock"></i></div>
+          <div class="earn-val" id="earn-hours">0h 0m</div>
+          <div class="earn-lbl">Total Hours</div>
+        </div>
+        <div class="earn-card green">
+          <div class="earn-icon"><i data-feather="check-circle"></i></div>
+          <div class="earn-val" id="earn-count">0</div>
+          <div class="earn-lbl">Completed Jobs</div>
+        </div>
+      </div>
+
+      <h3 class="section-heading">Per-Technician Breakdown</h3>
+      <div class="card-grid" id="earnings-breakdown">
+        <div class="empty-state"><i data-feather="dollar-sign"></i><p>No data yet</p></div>
+      </div>
+    </div>
+
+    <!-- USER MANAGEMENT -->
+    <div class="panel" id="panel-usermgmt">
+      <div class="panel-header">
+        <h2>User Management</h2>
+        <button class="btn-primary" onclick="openCreateUserModal()"><i data-feather="user-plus"></i> New User</button>
+      </div>
+      <h3 class="section-heading">Admins</h3>
+      <div class="card-grid" id="admins-grid">
+        <div class="empty-state"><i data-feather="shield"></i><p>No admins found</p></div>
+      </div>
+      <h3 class="section-heading" style="margin-top:24px">Technicians</h3>
+      <div class="card-grid" id="usermgmt-techs-grid">
+        <div class="empty-state"><i data-feather="users"></i><p>No technicians found</p></div>
+      </div>
+    </div>
+
+    <!-- NEW WORK ORDER -->
+    <div class="panel" id="panel-newjob">
+      <div class="panel-header"><h2>New Work Order</h2></div>
+      <div class="form-card glass">
+        <!-- your form fields go here -->
+        <p style="color:var(--muted);font-size:13px;">New work order form goes here.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const PANELS = [
+      'map','jobs','pending','techs','clients',
+      'completed','approvals','workorders',
+      'infractions','earnings','usermgmt','newjob'
+    ];
+
+    function hideLoaderSync() {
+      const loader = document.getElementById('loader');
+      if (loader) loader.style.display = 'none';
+    }
+
+    function showPanel(name) {
+      hideLoaderSync();
+
+      PANELS.forEach(p => {
+        const panel = document.getElementById('panel-' + p);
+        const nav = document.getElementById('nav-' + p);
+        if (panel) panel.classList.remove('active');
+        if (nav) nav.classList.remove('active');
+      });
+
+      const activePanel = document.getElementById('panel-' + name);
+      const activeNav = document.getElementById('nav-' + name);
+      if (activePanel) activePanel.classList.add('active');
+      if (activeNav) activeNav.classList.add('active');
+
+      const titleMap = {
+        map: 'Live Map',
+        jobs: 'All Jobs',
+        pending: 'Pending Jobs',
+        techs: 'Technicians',
+        clients: 'Clients',
+        completed: 'Completed Jobs',
+        approvals: 'Pending Approvals',
+        workorders: 'Work Orders',
+        infractions: 'Infractions',
+        earnings: 'Earnings & Hours',
+        usermgmt: 'User Management',
+        newjob: 'New Work Order'
+      };
+      const tb = document.getElementById('topbar-title');
+      if (tb && titleMap[name]) tb.textContent = titleMap[name];
+
+      closeSidebar();
+    }
+
+    function openSidebar() {
+      const sb = document.getElementById('sidebar');
+      const bd = document.getElementById('sidebar-backdrop');
+      if (sb) sb.classList.add('open');
+      if (bd) bd.classList.add('active');
+    }
+
+    function closeSidebar() {
+      const sb = document.getElementById('sidebar');
+      const bd = document.getElementById('sidebar-backdrop');
+      if (sb) sb.classList.remove('open');
+      if (bd) bd.classList.remove('active');
+    }
+
+    function loadAllData() {
+      // hook your Supabase loading here
+      // hideLoaderSync() MUST be called synchronously before any await in your real code
+      console.log('loadAllData called');
+    }
+
+    function signOut() {
+      console.log('signOut clicked');
+      // your sign-out logic here
+    }
+
+    function openCreateClientModal() {
+      console.log('openCreateClientModal');
+    }
+
+    function openCreateUserModal() {
+      console.log('openCreateUserModal');
+    }
+
+    function filterWorkOrders(status, btn) {
+      document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      console.log('filterWorkOrders', status);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      hideLoaderSync();
+      feather.replace();
+      showPanel('map');
+    });
+  </script>
+</body>
+</html>
