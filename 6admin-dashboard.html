@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Plush Intentions – Admin Dashboard</title>
+<script src="https://unpkg.com/feather-icons"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+
+<!-- ── LOADER ─────────────────────────── -->
+<div id="loader">
+  <img src="logo.png" class="loader-logo" alt="Plush Intentions" />
+  <div class="loader-text">LOADING DASHBOARD…</div>
+</div>
+
+<!-- ── TOAST ──────────────────────────── -->
+<div id="toast"></div>
+
+<!-- ── SIDEBAR BACKDROP (mobile) ──────── -->
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+<!-- ── SIDEBAR ─────────────────────────── -->
+<div class="sidebar glass" id="sidebar">
+
+  <div class="sidebar-header">
+    <div class="brand">
+      <img src="logo.png" alt="PI" />
+      <div class="brand-title">Plush Intentions<br/><span class="brand-sub">Admin Portal</span></div>
+    </div>
+    <button class="sidebar-close-btn" onclick="closeSidebar()">
+      <i data-feather="x"></i>
+    </button>
+  </div>
+
+  <div class="sidebar-stats">
+    <div class="ss-card pink"><div class="val" id="stat-jobs">–</div><div class="lbl">Jobs</div></div>
+    <div class="ss-card green"><div class="val" id="stat-active">–</div><div class="lbl">Active</div></div>
+    <div class="ss-card yellow"><div class="val" id="stat-pending">–</div><div class="lbl">Pending</div></div>
+    <div class="ss-card blue"><div class="val" id="stat-techs">–</div><div class="lbl">Techs</div></div>
+  </div>
+
+  <div class="nav-section">Navigation</div>
+
+  <div class="nav-link active" id="nav-map" onclick="showPanel('map')">
+    <i data-feather="map"></i> Live Map
+    <span class="live-dot"></span>
+  </div>
+  <div class="nav-link" id="nav-jobs" onclick="showPanel('jobs')">
+    <i data-feather="briefcase"></i> All Jobs
+  </div>
+  <div class="nav-link" id="nav-pending" onclick="showPanel('pending')">
+    <i data-feather="clock"></i> Pending Jobs
+    <span class="nav-badge" id="badge-pending"></span>
+  </div>
+  <div class="nav-link" id="nav-techs" onclick="showPanel('techs')">
+    <i data-feather="users"></i> Technicians
+  </div>
+  <div class="nav-link" id="nav-clients" onclick="showPanel('clients')">
+    <i data-feather="user"></i> Clients
+  </div>
+  <div class="nav-link" id="nav-completed" onclick="showPanel('completed')">
+    <i data-feather="check-circle"></i> Completed
+  </div>
+  <div class="nav-link" id="nav-approvals" onclick="showPanel('approvals')">
+    <i data-feather="user-check"></i> Approvals
+    <span class="nav-badge" id="badge-approvals"></span>
+  </div>
+  <div class="nav-link" id="nav-workorders" onclick="showPanel('workorders')">
+    <i data-feather="file-text"></i> Work Orders
+  </div>
+  <div class="nav-link" id="nav-infractions" onclick="showPanel('infractions')">
+    <i data-feather="alert-triangle"></i> Infractions
+    <span class="nav-badge" id="badge-infractions"></span>
+  </div>
+  <div class="nav-link" id="nav-earnings" onclick="showPanel('earnings')">
+    <i data-feather="dollar-sign"></i> Earnings &amp; Hours
+  </div>
+  <div class="nav-link" id="nav-usermgmt" onclick="showPanel('usermgmt')">
+    <i data-feather="settings"></i> User Management
+  </div>
+  <div class="nav-link" id="nav-newjob" onclick="showPanel('newjob')">
+    <i data-feather="plus-circle"></i> New Work Order
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="signed-in-email" id="signed-in-email">–</div>
+    <button class="btn-signout" onclick="signOut()">
+      <i data-feather="log-out"></i> Sign Out
+    </button>
+  </div>
+
+</div>
+
+<!-- ── MAIN ────────────────────────────── -->
+<div class="main-area" id="main-area">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <button class="hamburger" id="hamburger-btn" onclick="openSidebar()">
+      <i data-feather="menu"></i>
+    </button>
+    <div class="topbar-title" id="topbar-title">Live Map</div>
+    <button class="topbar-refresh" onclick="loadAllData()">
+      <i data-feather="refresh-cw"></i>
+    </button>
+  </div>
+
+  <!-- MOBILE STATS BAR -->
+  <div class="mobile-stats-bar">
+    <div class="msb-card"><div class="msb-val" id="m-stat-jobs">–</div><div class="msb-lbl">Jobs</div></div>
+    <div class="msb-card"><div class="msb-val" id="m-stat-active">–</div><div class="msb-lbl">Active</div></div>
+    <div class="msb-card"><div class="msb-val" id="m-stat-pending">–</div><div class="msb-lbl">Pending</div></div>
+    <div class="msb-card"><div class="msb-val" id="m-stat-techs">–</div><div class="msb-lbl">Techs</div></div>
+  </div>
+
+  <!-- ── PANEL: LIVE MAP ──────────────── -->
+  <div class="panel active" id="panel-map">
+    <div id="map-container"></div>
+  </div>
+
+  <!-- ── PANEL: ALL JOBS ─────────────── -->
+  <div class="panel" id="panel-jobs">
+    <div class="panel-header">
+      <h2>All Jobs</h2>
+      <button class="btn-primary" onclick="showPanel('newjob')"><i data-feather="plus"></i> New Job</button>
+    </div>
+    <div class="card-grid" id="jobs-grid">
+      <div class="empty-state"><i data-feather="briefcase"></i><p>No jobs found</p></div>
+    </div>
+  </div>
+
+  <!-- ── PANEL: PENDING JOBS ─────────── -->
+  <div class="panel" id="panel-pending">
+    <div class="panel-header">
+      <h2>Pending Jobs</h2>
+    </div>
+    <div class="card-grid" id="pending-grid">
+      <div class="empty-state"><i data-feather="clock"></i><p>No pending jobs</p></div>
+    </div>
+  </div>
+
+  <!-- ── PANEL: TECHNICIANS ──────────── -->
+  <div class="panel" id="panel-techs">
+    <div class="panel-header">
+      <h2>Technicians</h2>
+    </div>
+    <div class="card-grid" id="techs-grid">
+      <div class="empty-state"><i data-feather="users"></i><p>No technicians found</p></div>
+    </div>
+  </div>
+
+  <!-- ── PANEL: CLIENTS ─────────────── -->
+  <div class="panel" id="panel-clients">
+    <div class="panel-header">
+      <h2>Clients</h2>
+      <button class="btn-primary" onclick="openCreateClientModal()"><i data-feather="plus"></i> New Client</button>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" id="clients-table">
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Phone</th><th>City</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="clients-tbody">
+          <tr><td colspan="5" class="empty-row">No clients found</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── PANEL: COMPLETED ───────────── -->
+  <div class="panel" id="panel-completed">
+    <div class="panel-header"><h2>Completed Jobs</h2></div>
+    <div class="card-grid" id="completed-grid">
+      <div class="empty-state"><i data-feather="check-circle"></i><p>No completed jobs</p></div>
+    </div>
+  </div>
+
+  <!-- ── PANEL: APPROVALS ───────────── -->
+  <div class="panel" id="panel-approvals">
+    <div class="panel-header"><h2>Pending Approvals</h2></div>
+    <div class="card-grid" id="approvals-grid">
+      <div class="empty-state"><i data-feather="user-check"></i><p>No pending approvals</p></div>
+    </div>
+  </div>
+
+  <!-- ── PANEL: WORK ORDERS ─────────── -->
+  <div class="panel" id="panel-workorders">
+    <div class="panel-header">
+      <h2>Work Orders</h2>
+    </div>
+    <div class="filter-tabs">
+      <button class="filter-tab active" onclick="filterWorkOrders('all',this)">All</button>
+      <button class="filter-tab" onclick="filterWorkOrders('pending',this)">Pending</button>
+      <button class="filter-tab" onclick="filterWorkOrders('active',this)">Active</button>
+      <button class="filter-tab" onclick="filterWorkOrders('completed',this)">Completed</button>
+    </div>
+    <div class="card-grid" id="workorders-grid">
+      <div class="empty-state"><i data-feather="file-text"></i><p>No work orders</p></div>
+    </div>
+  </div>
+
+  <!-- ── PANEL: INFRACTIONS ─────────── -->
+  <div class="panel" id="panel-infractions">
+    <div class="panel-header"><h2>Infractions</h2></div>
+    <div class="card-grid" id="infractions-grid">
+      <div class="empty-state"><i data-feather="alert-triangle"></i><p>No infractions recorded</p></div>
+    </div>
+  </div>
+
+  <!-- ── PANEL: EARNINGS & HOURS ─────── -->
+  <div class="panel" id="panel-earnings">
+    <div class="panel-header"><h2>Earnings &amp; Hours</h2></div>
+
+    <div class="earnings-summary">
+      <div class="earn-card pink">
+        <div class="earn-icon"><i data-feather="dollar-sign"></i></div>
+        <div class="earn-val" id="earn-total">$0.00</div>
+        <div class="earn-lbl">Total Earnings</div>
+      </div>
+      <div class="earn-card blue">
+        <div class="earn-icon"><i data-feather="clock"></i></div>
+        <div class="earn-val" id="earn-hours">0h 0m</div>
+        <div class="earn-lbl">Total Hours</div>
+      </div>
+      <div class="earn-card green">
+        <div class="earn-icon"><i data-feather="check-circle"></i></div>
+        <div class="earn-val" id="earn-count">0</div>
+        <div class="earn-lbl">Completed Jobs</div>
+      </div>
+    </div>
+
+    <h3 class="section-heading">Per-Technician Breakdown</h3>
+    <div class="card-grid" id="earnings-breakdown">
+      <div class="empty-state"><i data-feather="dollar-sign"></i><p>No data yet</p></div>
+    </div>
+  </div>
+
+  <!-- ── PANEL: USER MANAGEMENT ──────── -->
+  <div class="panel" id="panel-usermgmt">
+    <div class="panel-header">
+      <h2>User Management</h2>
+      <button class="btn-primary" onclick="openCreateUserModal()"><i data-feather="user-plus"></i> New User</button>
+    </div>
+    <div class="section-heading-wrap">
+      <h3 class="section-heading">Admins</h3>
+    </div>
+    <div class="card-grid" id="admins-grid">
+      <div class="empty-state"><i data-feather="shield"></i><p>No admins found</p></div>
+    </div>
+    <div class="section-heading-wrap" style="margin-top:24px">
+      <h3 class="section-heading">Technicians</h3>
+    </div>
+    <div class="card-grid" id="usermgmt-techs-grid">
+      <div class="empty-state"><i data-feather="users"></i><p>No technicians found</p></div>
+    </div>
+  </div>
+
+  <!-- ── PANEL: NEW WORK ORDER ───────── -->
+  <div class="panel" id="panel-newjob">
+    <div class="panel-header"><h2>New Work Order</h2></div>
+    <div class="form-card glass">
+
+      <label class="form-label">Job Title</label>
+      <input type="text" id="nj-title" class="form-input" placeholder="e.g. AC Repair – Johnson Home" />
+
+      <label class="form-label">Description</label>
+      <textarea id="nj-description" class="form-input form-textarea" placeholder="Describe the work to be done…"></textarea>
+
+      <div class="form-row">
+        <div class="form-col">
+          <label class="form-label">Client</label>
+          <select id="nj-client" class="form-select">
+            <option value="">Select client…</option>
+          </select>
+        </div>
+        <div class="form-col">
+          <label class="form-label">Assign Technician (optional)</label>
+          <select id="nj-tech" class="form-select">
+            <option value="">Unassigned</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-col">
+          <label class="form-label">Priority</label>
+          <select id="nj-priority" class="form-select">
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+        <div class="form-col">
+          <label class="form-label">Job Rate ($)</label>
+          <input type="number" id="nj-rate" class="form-input" placeholder="0.00" step="0.01" min="0" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-col">
+          <label class="form-label">Scheduled Date</label>
+          <input type="date" id="nj-date" class="form-input" />
+        </div>
+        <div class="form-col">
+          <label class="form-label">Scheduled Time</label>
+          <input type="time" id="nj-time" class="form-input" />
+        </div>
+      </div>
+
+      <label class="form-label">Notes</label>
+      <textarea id="nj-notes" class="form-input form-textarea" placeholder="Internal notes…"></textarea>
+
+      <button class="btn-primary btn-full" onclick="createWorkOrder()">
+        <i data-feather="plus-circle"></i> Create Work Order
+      </button>
+
+    </div>
+  </div>
+
+</div><!-- /main-area -->
+
+<!-- ── BOTTOM NAV (mobile) ────────────── -->
+<nav class="bottom-nav">
+  <button class="bnav-btn active" id="bnav-map" onclick="showPanel('map')">
+    <i data-feather="map"></i><span>Map</span>
+  </button>
+  <button class="bnav-btn" id="bnav-jobs" onclick="showPanel('jobs')">
+    <i data-feather="briefcase"></i><span>Jobs</span>
+  </button>
+  <button class="bnav-btn" id="bnav-techs" onclick="showPanel('techs')">
+    <i data-feather="users"></i><span>Techs</span>
+  </button>
+  <button class="bnav-btn" id="bnav-newjob" onclick="showPanel('newjob')">
+    <i data-feather="plus-circle"></i><span>New</span>
+  </button>
+  <button class="bnav-btn" id="bnav-more" onclick="openSidebar()">
+    <i data-feather="more-horizontal"></i><span>More</span>
+  </button>
+</nav>
+
+<!-- ── ASSIGN MODAL ───────────────────── -->
+<div class="modal-overlay" id="assign-modal">
+  <div class="modal">
+    <h3>Assign Technician</h3>
+    <p id="modal-job-title">Select a technician to assign to this job.</p>
+    <select id="modal-tech-select" class="modal-select">
+      <option value="">Choose technician…</option>
+    </select>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal('assign-modal')">Cancel</button>
+      <button class="modal-confirm" onclick="confirmAssign()">Assign Job</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CREATE USER MODAL ──────────────── -->
+<div class="modal-overlay" id="create-user-modal">
+  <div class="modal">
+    <h3>Create New User</h3>
+    <p style="opacity:.55;font-size:13px;margin-bottom:16px">Create an admin or technician account.</p>
+
+    <label class="form-label">Full Name</label>
+    <input type="text" id="cu-name" class="modal-input" placeholder="Jane Smith" />
+
+    <label class="form-label">Email Address</label>
+    <input type="email" id="cu-email" class="modal-input" placeholder="jane@example.com" />
+
+    <label class="form-label">Password</label>
+    <input type="password" id="cu-password" class="modal-input" placeholder="Min 6 characters" />
+
+    <label class="form-label">Role</label>
+    <select id="cu-role" class="modal-select" onchange="toggleTechFields()">
+      <option value="technician">Technician</option>
+      <option value="admin">Admin</option>
+    </select>
+
+    <div id="cu-tech-fields">
+      <label class="form-label">Phone (optional)</label>
+      <input type="tel" id="cu-phone" class="modal-input" placeholder="(555) 000-0000" />
+      <label class="form-label">City (optional)</label>
+      <input type="text" id="cu-city" class="modal-input" placeholder="Columbus, OH" />
+    </div>
+
+    <div class="modal-error" id="cu-error"></div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal('create-user-modal')">Cancel</button>
+      <button class="modal-confirm" id="cu-submit-btn" onclick="createUser()">Create User</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── RESET PASSWORD MODAL ───────────── -->
+<div class="modal-overlay" id="reset-pw-modal">
+  <div class="modal">
+    <h3>Reset Password</h3>
+    <p id="reset-pw-label" style="opacity:.55;font-size:13px;margin-bottom:16px">Enter a new password.</p>
+    <input type="hidden" id="reset-pw-uid" />
+    <label class="form-label">New Password</label>
+    <input type="password" id="reset-pw-input" class="modal-input" placeholder="Min 6 characters" />
+    <label class="form-label">Confirm Password</label>
+    <input type="password" id="reset-pw-confirm" class="modal-input" placeholder="Repeat password" />
+    <div class="modal-error" id="reset-pw-error"></div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal('reset-pw-modal')">Cancel</button>
+      <button class="modal-confirm" onclick="confirmResetPw()">Reset Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CREATE CLIENT MODAL ────────────── -->
+<div class="modal-overlay" id="create-client-modal">
+  <div class="modal">
+    <h3>New Client</h3>
+    <label class="form-label">Full Name</label>
+    <input type="text" id="cc-name" class="modal-input" placeholder="John Doe" />
+    <label class="form-label">Email</label>
+    <input type="email" id="cc-email" class="modal-input" placeholder="john@example.com" />
+    <label class="form-label">Phone</label>
+    <input type="tel" id="cc-phone" class="modal-input" placeholder="(555) 000-0000" />
+    <label class="form-label">City</label>
+    <input type="text" id="cc-city" class="modal-input" placeholder="Columbus, OH" />
+    <label class="form-label">Address</label>
+    <input type="text" id="cc-address" class="modal-input" placeholder="123 Main St" />
+    <div class="modal-error" id="cc-error"></div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal('create-client-modal')">Cancel</button>
+      <button class="modal-confirm" onclick="createClient()">Add Client</button>
+    </div>
+  </div>
+</div>
+
+<script src="dashboard.js"></script>
+</body>
+</html>
