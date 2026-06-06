@@ -71,7 +71,7 @@ function openSidebar() {
   var sb2 = document.getElementById('sidebar');
   var bd  = document.getElementById('sidebar-backdrop');
   if (sb2) sb2.classList.add('open');
-  if (bd)  bd.classList.add('open');
+  if (bd)  bd.classList.add('show');
 }
 window.openSidebar = openSidebar;
 
@@ -79,9 +79,10 @@ function closeSidebar() {
   var sb2 = document.getElementById('sidebar');
   var bd  = document.getElementById('sidebar-backdrop');
   if (sb2) sb2.classList.remove('open');
-  if (bd)  bd.classList.remove('open');
+  if (bd)  bd.classList.remove('show');
 }
 window.closeSidebar = closeSidebar;
+
 
 // ══════════════════════════════════════════════════════════════
 //  PANEL NAVIGATION
