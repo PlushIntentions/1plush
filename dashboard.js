@@ -6,8 +6,8 @@
    ============================================================ */
 
 // ── 1. SUPABASE CLIENT ───────────────────────────────────────
-const SUPABASE_URL = 'https://faithkncd.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY_HERE'; // ← paste your key here
+const SUPABASE_URL = 'https://iazvpykfdckpffhakncd.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhenZweWtmZGNrcGZmaGFrbmNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNzA0MTEsImV4cCI6MjA5NTg0NjQxMX0.OOXhS1zLez30isOszxP0XOIyndpJq2jwqE90eY649bA'; // ← paste your key here
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
