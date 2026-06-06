@@ -10,7 +10,7 @@ const SUPABASE_URL = 'https://iazvpykfdckpffhakncd.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhenZweWtmZGNrcGZmaGFrbmNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNzA0MTEsImV4cCI6MjA5NTg0NjQxMX0.OOXhS1zLez30isOszxP0XOIyndpJq2jwqE90eY649bA'; // ← paste your key here
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+we
 // ── 2. STATE ─────────────────────────────────────────────────
 let mapInstance = null;
 let allTechs    = [];
@@ -563,51 +563,59 @@ window.toggleTechFields = function () {
   if (tf) tf.style.display = (role === 'technician') ? 'block' : 'none';
 };
 
-window.createUser = async function () {
-  const name     = (document.getElementById('cu-name')     || {}).value;
-  const email    = (document.getElementById('cu-email')    || {}).value;
-  const password = (document.getElementById('cu-password') || {}).value;
-  const role     = (document.getElementById('cu-role')     || {}).value || 'technician';
-  const phone    = (document.getElementById('cu-phone')    || {}).value;
-  const city     = (document.getElementById('cu-city')     || {}).value;
-  const errEl    = document.getElementById('cu-error');
-  const btn      = document.getElementById('cu-submit-btn');
+async function createUser() {
+  const email    = document.getElementById('new-email').value.trim();
+  const password = document.getElementById('new-password').value.trim();
+  const fullName = document.getElementById('new-name').value.trim();
+  const role     = document.getElementById('new-role').value;
+  const phone    = (document.getElementById('new-phone')?.value || '').trim();
+  const city     = (document.getElementById('new-city')?.value  || '').trim();
 
-  if (!email || !password) {
-    if (errEl) errEl.textContent = 'Email and password are required.';
-    return;
+  if (!email || !password || !fullName) {
+    showToast('Please fill in name, email and password', 'error'); return;
   }
-  if (btn) btn.disabled = true;
-  if (errEl) errEl.textContent = '';
-
-  const { data: authData, error: authErr } = await sb.auth.signUp({ email: email, password: password });
-  if (authErr) {
-    if (errEl) errEl.textContent = authErr.message;
-    if (btn) btn.disabled = false;
-    return;
+  if (password.length < 6) {
+    showToast('Password must be at least 6 characters', 'error'); return;
   }
 
-  const userId = authData.user ? authData.user.id : null;
-  const { error: dbErr } = await sb.from('technicians').insert([{
-    user_id: userId, full_name: name, email: email,
-    phone: phone || null, city: city || null, role: role,
-    status: role === 'admin' ? 'active' : 'pending_approval',
-    is_active: role === 'admin'
-  }]);
+  try {
+    const { data, error } = await sb.auth.signUp({
+      email, password,
+      options: { data: { full_name: fullName, role } }
+    });
 
-  if (dbErr) {
-    if (errEl) errEl.textContent = 'Auth created but DB error: ' + dbErr.message;
-    if (btn) btn.disabled = false;
-    return;
+    if (error) {
+      if (error.status === 429 || error.message.toLowerCase().includes('rate')) {
+        showToast('⚠️ Email rate limit hit — disable email confirmation in Supabase Auth → Settings', 'error');
+      } else {
+        showToast(error.message, 'error');
+      }
+      return;
+    }
+
+    const userId = data?.user?.id;
+    if (!userId) {
+      showToast('User may already exist or confirmation is pending', 'error'); return;
+    }
+
+    const { error: tErr } = await sb.from('technicians').insert({
+      user_id: userId, full_name: fullName,
+      email, phone, city, role,
+      status: 'pending', is_active: false
+    });
+
+    if (tErr) {
+      showToast('Auth created but DB insert failed: ' + tErr.message, 'error'); return;
+    }
+
+    showToast(`✅ ${fullName} created!`, 'success');
+    closeModal('create-user-modal');
+    await loadAllData();
+
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error');
   }
-
-  showToast('User created!');
-  closeModal('create-user-modal');
-  await loadTechs();
-  updateStats();
-  renderUserMgmt();
-  if (btn) btn.disabled = false;
-};
+}
 
 // ── 21. RESET PASSWORD MODAL ─────────────────────────────────
 window.openResetPw = function (userId, name) {
