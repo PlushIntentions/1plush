@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
    Plush Intentions — Admin Dashboard JS
-   Supabase URL : https://faithkncd.supabase.co
+   Supabase URL : https://iazvpykfdckpffhakncd.supabase.co
    !! Replace YOUR_SUPABASE_ANON_KEY with your real anon/public key
 ═══════════════════════════════════════════════════════════════ */
 
