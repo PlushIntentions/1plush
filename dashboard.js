@@ -4,8 +4,8 @@
    ============================================================ */
 
 // ── CONFIG ──────────────────────────────────────────────────
-const SUPA_URL  = 'https://faithkncd.supabase.co';
-const SUPA_ANON = 'YOUR_SUPABASE_ANON_KEY_HERE'; // ← PASTE YOUR KEY HERE
+const SUPA_URL  = 'https://iazvpykfdckpffhakncd.supabase.co';
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhenZweWtmZGNrcGZmaGFrbmNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNzA0MTEsImV4cCI6MjA5NTg0NjQxMX0.OOXhS1zLez30isOszxP0XOIyndpJq2jwqE90eY649bA'; // ← PASTE YOUR KEY HERE
 const MAPBOX_TOKEN = 'pk.eyJ1IjoicGx1c2gtaW50ZW50aW9ucyIsImEiOiJjbXA5ejJlcGwwMzQxMnJwdXBpZTg5NmYxIn0.i0wFsO5_bt70k942AsMNcg';
 
 // ── HIDE LOADER IMMEDIATELY (before anything async) ─────────
