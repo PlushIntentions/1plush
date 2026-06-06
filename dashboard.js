@@ -1,787 +1,775 @@
 /* ============================================================
    dashboard.js — Plush Intentions Admin Dashboard
-   ============================================================
-   IMPORTANT: Replace YOUR_ANON_KEY_HERE with your real
-   Supabase anon/public key before uploading.
+   RULE: loader MUST be hidden SYNCHRONOUSLY before any await/async
    ============================================================ */
 
-// ── 1. SUPABASE CLIENT ───────────────────────────────────────
-const SUPABASE_URL = 'https://iazvpykfdckpffhakncd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhenZweWtmZGNrcGZmaGFrbmNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNzA0MTEsImV4cCI6MjA5NTg0NjQxMX0.OOXhS1zLez30isOszxP0XOIyndpJq2jwqE90eY649bA'; // ← paste your key here
-
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-we
-// ── 2. STATE ─────────────────────────────────────────────────
-let mapInstance = null;
-let allTechs    = [];
-let allJobs     = [];
-let allClients  = [];
-let allInfractions = [];
-let currentPanel = 'map';
-
-// ── 3. UTILITY ───────────────────────────────────────────────
-function hideLoader() {
-  const el = document.getElementById('loader');
-  if (el) { el.style.display = 'none'; }
-}
-
-function showToast(msg, type) {
-  const t = document.getElementById('toast');
-  if (!t) return;
-  t.textContent = msg;
-  t.className   = 'show' + (type === 'error' ? ' error' : '');
-  clearTimeout(t._timer);
-  t._timer = setTimeout(function () { t.className = ''; }, 3500);
-}
-
-function setText(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
-}
-
-function setBadge(id, count) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (count > 0) { el.textContent = count; el.style.display = 'inline-block'; }
-  else           { el.style.display = 'none'; }
-}
-
-function techName(t) {
-  return t.full_name || t.name || t.email || 'Unknown';
-}
-
-// ── 4. SIDEBAR / PANEL NAVIGATION ───────────────────────────
-window.openSidebar = function () {
-  document.getElementById('sidebar').classList.add('open');
-  document.getElementById('sidebar-backdrop').classList.add('open');
-};
-
-window.closeSidebar = function () {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebar-backdrop').classList.remove('open');
-};
-
-window.showPanel = function (name) {
-  document.querySelectorAll('[id^="panel-"]').forEach(function (p) {
-    p.style.display = 'none';
-  });
-  document.querySelectorAll('.nav-link').forEach(function (l) {
-    l.classList.remove('active');
-  });
-
-  const panel = document.getElementById('panel-' + name);
-  if (panel) panel.style.display = 'block';
-
-  const navLink = document.getElementById('nav-' + name);
-  if (navLink) navLink.classList.add('active');
-
-  const titles = {
-    map:         'Live Map',
-    jobs:        'All Jobs',
-    pending:     'Pending Jobs',
-    techs:       'Technicians',
-    clients:     'Clients',
-    completed:   'Completed Jobs',
-    approvals:   'Pending Approvals',
-    workorders:  'Work Orders',
-    infractions: 'Infractions',
-    earnings:    'Earnings',
-    usermgmt:    'User Management',
-    newjob:      'Create New Job'
-  };
-  setText('topbar-title', titles[name] || 'Dashboard');
-
-  currentPanel = name;
-  closeSidebar();
-
-  if (name === 'map') {
-    setTimeout(initMap, 300);
-  }
-};
-
-// ── 5. SIGN OUT ───────────────────────────────────────────────
-window.signOut = async function () {
-  await sb.auth.signOut();
-  window.location.href = 'index.html';
-};
-
-// ── 6. LOAD ALL DATA ─────────────────────────────────────────
-window.loadAllData = async function () {
-  try {
-    await Promise.all([loadTechs(), loadJobs(), loadClients(), loadInfractions()]);
-    updateStats();
-    renderCurrentPanel();
-  } catch (e) {
-    console.error('loadAllData error:', e);
-  }
-};
-
-async function loadTechs() {
-  try {
-    const { data, error } = await sb.from('technicians').select('*');
-    if (error) { console.warn('technicians load error:', error.message); return; }
-    allTechs = data || [];
-  } catch (e) { console.warn('loadTechs exception:', e); }
-}
-
-async function loadJobs() {
-  try {
-    const { data, error } = await sb.from('jobs').select('*');
-    if (error) { console.warn('jobs load error:', error.message); return; }
-    allJobs = data || [];
-  } catch (e) { console.warn('loadJobs exception:', e); }
-}
-
-async function loadClients() {
-  try {
-    const { data, error } = await sb.from('clients').select('*');
-    if (error) { console.warn('clients load error:', error.message); return; }
-    allClients = data || [];
-  } catch (e) { console.warn('loadClients exception:', e); }
-}
-
-async function loadInfractions() {
-  try {
-    const { data, error } = await sb.from('infractions').select('*');
-    if (error) { console.warn('infractions load error:', error.message); return; }
-    allInfractions = data || [];
-  } catch (e) { console.warn('loadInfractions exception:', e); }
-}
-
-// ── 7. STATS ─────────────────────────────────────────────────
-function updateStats() {
-  const totalJobs       = allJobs.length;
-  const activeJobs      = allJobs.filter(function (j) { return j.status === 'active' || j.status === 'in_progress'; }).length;
-  const pendingJobs     = allJobs.filter(function (j) { return j.status === 'pending'; }).length;
-  const approvalCount   = allTechs.filter(function (t) { return t.status === 'pending_approval'; }).length;
-  const infractionCount = allInfractions.filter(function (i) { return !i.resolved; }).length;
-
-  setText('stat-jobs',    totalJobs);
-  setText('stat-active',  activeJobs);
-  setText('stat-pending', pendingJobs);
-  setText('stat-techs',   allTechs.length);
-
-  setText('m-stat-jobs',    totalJobs);
-  setText('m-stat-active',  activeJobs);
-  setText('m-stat-pending', pendingJobs);
-  setText('m-stat-techs',   allTechs.length);
-
-  setBadge('badge-pending',     pendingJobs);
-  setBadge('badge-approvals',   approvalCount);
-  setBadge('badge-infractions', infractionCount);
-}
-
-function renderCurrentPanel() {
-  switch (currentPanel) {
-    case 'map':         renderMap();              break;
-    case 'jobs':        renderJobs();             break;
-    case 'pending':     renderPending();          break;
-    case 'techs':       renderTechs();            break;
-    case 'clients':     renderClients();          break;
-    case 'completed':   renderCompleted();        break;
-    case 'approvals':   renderApprovals();        break;
-    case 'workorders':  renderWorkOrders('all');  break;
-    case 'infractions': renderInfractions();      break;
-    case 'earnings':    renderEarnings();         break;
-    case 'usermgmt':    renderUserMgmt();         break;
-    case 'newjob':      renderNewJobForm();       break;
-  }
-}
-
-// ── 8. MAP ────────────────────────────────────────────────────
-function initMap() {
-  const container = document.getElementById('map-container');
-  if (!container || mapInstance) return;
-  try {
-    mapboxgl.accessToken = 'pk.eyJ1IjoicGx1c2gtaW50ZW50aW9ucyIsImEiOiJjbXA5ejJlcGwwMzQxMnJwdXBpZTg5NmYxIn0.i0wFsO5_bt70k942AsMNcg';
-    mapInstance = new mapboxgl.Map({
-      container: 'map-container',
-      style: 'mapbox://styles/mapbox/dark-v11',
-      center: [-82.1824, 41.4525],
-      zoom: 10
-    });
-    mapInstance.on('load', function () { renderMap(); });
-  } catch (e) {
-    console.warn('Map init error:', e);
-  }
-}
-
-function renderMap() {
-  if (!mapInstance) return;
-  document.querySelectorAll('.mapboxgl-marker').forEach(function (m) { m.remove(); });
-  allTechs.forEach(function (t) {
-    if (!t.lat || !t.lng) return;
-    const el = document.createElement('div');
-    el.style.cssText = 'width:14px;height:14px;background:#FF4F9F;border-radius:50%;border:2px solid #fff;cursor:pointer;';
-    el.title = techName(t);
-    new mapboxgl.Marker(el)
-      .setLngLat([t.lng, t.lat])
-      .setPopup(new mapboxgl.Popup({ offset: 14 }).setText(techName(t) + ' — ' + (t.status || '')))
-      .addTo(mapInstance);
-  });
-}
-
-// ── 9. JOB CARD BUILDER ───────────────────────────────────────
-function jobCard(j) {
-  const tech   = allTechs.find(function (t) { return t.id === j.technician_id; });
-  const client = allClients.find(function (c) { return c.id === j.client_id; });
-  const statusClass = {
-    pending:    'status-pending',
-    active:     'status-active',
-    in_progress:'status-active',
-    completed:  'status-completed',
-    cancelled:  'status-cancelled'
-  }[j.status] || 'status-pending';
-
-  return '<div class="card">' +
-    '<div class="card-header">' +
-      '<span class="card-title">' + esc(j.title || 'Untitled') + '</span>' +
-      '<span class="status-badge ' + statusClass + '">' + (j.status || 'pending') + '</span>' +
-    '</div>' +
-    '<div class="card-meta">' +
-      '<span><i data-feather="user"></i> ' + (tech ? techName(tech) : 'Unassigned') + '</span>' +
-      '<span><i data-feather="briefcase"></i> ' + (client ? esc(client.name) : 'No client') + '</span>' +
-    '</div>' +
-    '<div class="card-meta">' +
-      '<span><i data-feather="calendar"></i> ' + (j.scheduled_date || '—') + '</span>' +
-      '<span><i data-feather="dollar-sign"></i> $' + (j.job_rate || '0') + '/hr</span>' +
-    '</div>' +
-    '<div class="card-actions">' +
-    (j.status !== 'completed' && j.status !== 'cancelled'
-      ? '<button class="btn btn-sm btn-pink" onclick="openAssignModal(\'' + j.id + '\',\'' + esc(j.title) + '\')">Assign</button>' +
-        '<button class="btn btn-sm" onclick="updateJobStatus(\'' + j.id + '\',\'completed\')">Complete</button>' +
-        '<button class="btn btn-sm btn-danger" onclick="updateJobStatus(\'' + j.id + '\',\'cancelled\')">Cancel</button>'
-      : '') +
-    '</div>' +
-    '</div>';
-}
-
-// ── 10. PANELS ────────────────────────────────────────────────
-function renderJobs() {
-  const el = document.getElementById('jobs-grid');
-  if (!el) return;
-  if (!allJobs.length) { el.innerHTML = '<p class="empty-msg">No jobs found.</p>'; return; }
-  el.innerHTML = allJobs.map(jobCard).join('');
-  feather.replace();
-}
-
-function renderPending() {
-  const el = document.getElementById('pending-grid');
-  if (!el) return;
-  const list = allJobs.filter(function (j) { return j.status === 'pending'; });
-  if (!list.length) { el.innerHTML = '<p class="empty-msg">No pending jobs.</p>'; return; }
-  el.innerHTML = list.map(jobCard).join('');
-  feather.replace();
-}
-
-function renderCompleted() {
-  const el = document.getElementById('completed-grid');
-  if (!el) return;
-  const list = allJobs.filter(function (j) { return j.status === 'completed'; });
-  if (!list.length) { el.innerHTML = '<p class="empty-msg">No completed jobs.</p>'; return; }
-  el.innerHTML = list.map(jobCard).join('');
-  feather.replace();
-}
-
-// ── 11. WORK ORDERS ───────────────────────────────────────────
-window.filterWorkOrders = function (filter, btn) {
-  document.querySelectorAll('.filter-tab').forEach(function (b) { b.classList.remove('active'); });
-  if (btn) btn.classList.add('active');
-  renderWorkOrders(filter);
-};
-
-function renderWorkOrders(filter) {
-  const el = document.getElementById('workorders-grid');
-  if (!el) return;
-  let list = allJobs;
-  if (filter && filter !== 'all') list = allJobs.filter(function (j) { return j.status === filter; });
-  if (!list.length) { el.innerHTML = '<p class="empty-msg">No work orders found.</p>'; return; }
-  el.innerHTML = list.map(jobCard).join('');
-  feather.replace();
-}
-
-// ── 12. TECHNICIANS ───────────────────────────────────────────
-function renderTechs() {
-  const el = document.getElementById('techs-grid');
-  if (!el) return;
-  const list = allTechs.filter(function (t) { return t.status !== 'pending_approval'; });
-  if (!list.length) { el.innerHTML = '<p class="empty-msg">No technicians found.</p>'; return; }
-  el.innerHTML = list.map(function (t) {
-    return '<div class="card">' +
-      '<div class="card-header">' +
-        '<span class="card-title">' + esc(techName(t)) + '</span>' +
-        '<span class="status-badge ' + (t.is_active ? 'status-active' : 'status-cancelled') + '">' + (t.is_active ? 'Active' : 'Inactive') + '</span>' +
-      '</div>' +
-      '<div class="card-meta">' +
-        '<span><i data-feather="mail"></i> ' + esc(t.email || '—') + '</span>' +
-        '<span><i data-feather="phone"></i> ' + esc(t.phone || '—') + '</span>' +
-      '</div>' +
-      '<div class="card-meta"><span><i data-feather="map-pin"></i> ' + esc(t.city || '—') + '</span></div>' +
-      '<div class="card-actions">' +
-        '<button class="btn btn-sm btn-pink" onclick="setTechStatus(\'' + t.id + '\',' + (t.is_active ? 'false' : 'true') + ')">' + (t.is_active ? 'Deactivate' : 'Activate') + '</button>' +
-        '<button class="btn btn-sm" onclick="openResetPw(\'' + (t.user_id || t.id) + '\',\'' + esc(techName(t)) + '\')">Reset PW</button>' +
-        '<button class="btn btn-sm btn-danger" onclick="deleteTech(\'' + t.id + '\')">Delete</button>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-  feather.replace();
-}
-
-// ── 13. APPROVALS ─────────────────────────────────────────────
-function renderApprovals() {
-  const el = document.getElementById('approvals-grid');
-  if (!el) return;
-  const list = allTechs.filter(function (t) { return t.status === 'pending_approval'; });
-  if (!list.length) { el.innerHTML = '<p class="empty-msg">No pending approvals.</p>'; return; }
-  el.innerHTML = list.map(function (t) {
-    return '<div class="card">' +
-      '<div class="card-header">' +
-        '<span class="card-title">' + esc(techName(t)) + '</span>' +
-        '<span class="status-badge status-pending">Pending</span>' +
-      '</div>' +
-      '<div class="card-meta">' +
-        '<span><i data-feather="mail"></i> ' + esc(t.email || '—') + '</span>' +
-        '<span><i data-feather="map-pin"></i> ' + esc(t.city || '—') + '</span>' +
-      '</div>' +
-      '<div class="card-actions">' +
-        '<button class="btn btn-sm btn-pink" onclick="approveTech(\'' + t.id + '\')">Approve</button>' +
-        '<button class="btn btn-sm btn-danger" onclick="rejectTech(\'' + t.id + '\')">Reject</button>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-  feather.replace();
-}
-
-// ── 14. CLIENTS ───────────────────────────────────────────────
-function renderClients() {
-  const el = document.getElementById('clients-tbody');
-  if (!el) return;
-  if (!allClients.length) {
-    el.innerHTML = '<tr><td colspan="5" class="empty-msg">No clients found.</td></tr>';
-    return;
-  }
-  el.innerHTML = allClients.map(function (c) {
-    return '<tr>' +
-      '<td>' + esc(c.name || '—') + '</td>' +
-      '<td>' + esc(c.email || '—') + '</td>' +
-      '<td>' + esc(c.phone || '—') + '</td>' +
-      '<td>' + esc(c.city || '—') + '</td>' +
-      '<td><button class="btn btn-sm btn-danger" onclick="deleteClient(\'' + c.id + '\')">Delete</button></td>' +
-    '</tr>';
-  }).join('');
-}
-
-// ── 15. INFRACTIONS ───────────────────────────────────────────
-function renderInfractions() {
-  const el = document.getElementById('infractions-grid');
-  if (!el) return;
-  if (!allInfractions.length) { el.innerHTML = '<p class="empty-msg">No infractions found.</p>'; return; }
-  el.innerHTML = allInfractions.map(function (inf) {
-    const tech = allTechs.find(function (t) { return t.id === inf.technician_id; });
-    const sevClass = inf.severity === 'high' ? 'status-cancelled' : inf.severity === 'medium' ? 'status-pending' : 'status-active';
-    return '<div class="card">' +
-      '<div class="card-header">' +
-        '<span class="card-title">' + esc(tech ? techName(tech) : 'Unknown Tech') + '</span>' +
-        '<span class="status-badge ' + sevClass + '">' + (inf.severity || 'low') + '</span>' +
-      '</div>' +
-      '<p style="margin:8px 0;color:var(--text-muted);font-size:.85rem;">' + esc(inf.description || inf.reason || '—') + '</p>' +
-      '<div class="card-meta"><span>Status: ' + (inf.resolved ? '✅ Resolved' : '🔴 Open') + '</span></div>' +
-      '<div class="card-actions">' +
-        (!inf.resolved ? '<button class="btn btn-sm btn-pink" onclick="resolveInfraction(\'' + inf.id + '\')">Resolve</button>' : '') +
-        '<button class="btn btn-sm btn-danger" onclick="deleteInfraction(\'' + inf.id + '\')">Delete</button>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-  feather.replace();
-}
-
-// ── 16. EARNINGS ──────────────────────────────────────────────
-function renderEarnings() {
-  const completed = allJobs.filter(function (j) { return j.status === 'completed'; });
-  let total = 0, hours = 0;
-  completed.forEach(function (j) {
-    const rate = parseFloat(j.job_rate) || 0;
-    let hrs = 0;
-    if (j.check_in_time && j.check_out_time) {
-      const diff = new Date(j.check_out_time) - new Date(j.check_in_time);
-      hrs = diff > 0 ? diff / 3600000 : 0;
-    }
-    total += rate * hrs;
-    hours += hrs;
-  });
-
-  setText('earn-total', '$' + total.toFixed(2));
-  setText('earn-hours', hours.toFixed(1) + ' hrs');
-  setText('earn-count', completed.length);
-
-  const breakdown = document.getElementById('earnings-breakdown');
-  if (!breakdown) return;
-  if (!completed.length) { breakdown.innerHTML = '<p class="empty-msg">No completed jobs yet.</p>'; return; }
-  breakdown.innerHTML = completed.map(function (j) {
-    const tech = allTechs.find(function (t) { return t.id === j.technician_id; });
-    const rate = parseFloat(j.job_rate) || 0;
-    let hrs = 0;
-    if (j.check_in_time && j.check_out_time) {
-      const diff = new Date(j.check_out_time) - new Date(j.check_in_time);
-      hrs = diff > 0 ? diff / 3600000 : 0;
-    }
-    return '<div class="card" style="margin-bottom:10px;">' +
-      '<div class="card-header">' +
-        '<span class="card-title">' + esc(j.title || 'Untitled') + '</span>' +
-        '<span class="status-badge status-completed">$' + (rate * hrs).toFixed(2) + '</span>' +
-      '</div>' +
-      '<div class="card-meta">' +
-        '<span>' + (tech ? techName(tech) : 'Unknown') + '</span>' +
-        '<span>' + hrs.toFixed(1) + ' hrs @ $' + rate + '/hr</span>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-}
-
-// ── 17. USER MANAGEMENT ───────────────────────────────────────
-function renderUserMgmt() {
-  const adminsEl = document.getElementById('admins-grid');
-  const techsEl  = document.getElementById('usermgmt-techs-grid');
-  const admins = allTechs.filter(function (t) { return t.role === 'admin'; });
-  const techs  = allTechs.filter(function (t) { return t.role !== 'admin'; });
-
-  if (adminsEl) {
-    adminsEl.innerHTML = admins.length
-      ? admins.map(userCard).join('')
-      : '<p class="empty-msg">No admins found.</p>';
-    feather.replace();
-  }
-  if (techsEl) {
-    techsEl.innerHTML = techs.length
-      ? techs.map(userCard).join('')
-      : '<p class="empty-msg">No technician accounts found.</p>';
-    feather.replace();
-  }
-}
-
-function userCard(t) {
-  return '<div class="card">' +
-    '<div class="card-header">' +
-      '<span class="card-title">' + esc(techName(t)) + '</span>' +
-      '<span class="status-badge status-active">' + esc(t.role || 'technician') + '</span>' +
-    '</div>' +
-    '<div class="card-meta"><span><i data-feather="mail"></i> ' + esc(t.email || '—') + '</span></div>' +
-    '<div class="card-actions">' +
-      '<button class="btn btn-sm btn-pink" onclick="openResetPw(\'' + (t.user_id || t.id) + '\',\'' + esc(techName(t)) + '\')">Reset PW</button>' +
-    '</div>' +
-  '</div>';
-}
-
-// ── 18. NEW JOB FORM ─────────────────────────────────────────
-function renderNewJobForm() {
-  const clientSel = document.getElementById('nj-client');
-  if (clientSel) {
-    clientSel.innerHTML = '<option value="">Select client…</option>' +
-      allClients.map(function (c) { return '<option value="' + c.id + '">' + esc(c.name) + '</option>'; }).join('');
-  }
-  const techSel = document.getElementById('nj-tech');
-  if (techSel) {
-    const active = allTechs.filter(function (t) { return t.is_active && t.status !== 'pending_approval'; });
-    techSel.innerHTML = '<option value="">Assign technician…</option>' +
-      active.map(function (t) { return '<option value="' + t.id + '">' + esc(techName(t)) + '</option>'; }).join('');
-  }
-}
-
-window.createWorkOrder = async function () {
-  const title    = (document.getElementById('nj-title')       || {}).value;
-  const desc     = (document.getElementById('nj-description') || {}).value;
-  const clientId = (document.getElementById('nj-client')      || {}).value;
-  const techId   = (document.getElementById('nj-tech')        || {}).value;
-  const priority = (document.getElementById('nj-priority')    || {}).value || 'normal';
-  const rate     = (document.getElementById('nj-rate')        || {}).value;
-  const date     = (document.getElementById('nj-date')        || {}).value;
-  const time     = (document.getElementById('nj-time')        || {}).value;
-  const notes    = (document.getElementById('nj-notes')       || {}).value;
-
-  if (!title) { showToast('Job title is required.', 'error'); return; }
-
-  const { error } = await sb.from('jobs').insert([{
-    title: title, description: desc,
-    client_id: clientId || null, technician_id: techId || null,
-    priority: priority, job_rate: parseFloat(rate) || 0,
-    scheduled_date: date || null, scheduled_time: time || null,
-    notes: notes, status: 'pending'
-  }]);
-  if (error) { showToast('Error: ' + error.message, 'error'); return; }
-
-  showToast('Job created!');
-  await loadJobs();
-  updateStats();
-  showPanel('jobs');
-};
-
-// ── 19. ASSIGN MODAL ─────────────────────────────────────────
-let _assignJobId = null;
-
-window.openAssignModal = function (jobId, title) {
-  _assignJobId = jobId;
-  setText('modal-job-title', title || 'Job');
-  const sel = document.getElementById('modal-tech-select');
-  if (sel) {
-    sel.innerHTML = '<option value="">Select technician…</option>' +
-      allTechs.filter(function (t) { return t.is_active !== false && t.status !== 'pending_approval'; })
-        .map(function (t) { return '<option value="' + t.id + '">' + esc(techName(t)) + '</option>'; }).join('');
-  }
-  const modal = document.getElementById('assign-modal');
-  if (modal) modal.classList.add('open');
-};
-
-window.confirmAssign = async function () {
-  const sel = document.getElementById('modal-tech-select');
-  const techId = sel ? sel.value : null;
-  if (!techId) { showToast('Select a technician.', 'error'); return; }
-  const { error } = await sb.from('jobs').update({ technician_id: techId, status: 'active' }).eq('id', _assignJobId);
-  if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  showToast('Technician assigned!');
-  closeModal('assign-modal');
-  await loadJobs();
-  updateStats();
-  renderCurrentPanel();
-};
-
-function closeModal(id) {
-  const el = document.getElementById(id);
-  if (el) el.classList.remove('open');
-}
-
-// ── 20. CREATE USER MODAL ────────────────────────────────────
-window.openCreateUserModal = function () {
-  const modal = document.getElementById('create-user-modal');
-  if (modal) modal.classList.add('open');
-  const err = document.getElementById('cu-error');
-  if (err) err.textContent = '';
-};
-
-window.toggleTechFields = function () {
-  const role = (document.getElementById('cu-role') || {}).value;
-  const tf = document.getElementById('cu-tech-fields');
-  if (tf) tf.style.display = (role === 'technician') ? 'block' : 'none';
-};
-
-async function createUser() {
-  const email    = document.getElementById('new-email').value.trim();
-  const password = document.getElementById('new-password').value.trim();
-  const fullName = document.getElementById('new-name').value.trim();
-  const role     = document.getElementById('new-role').value;
-  const phone    = (document.getElementById('new-phone')?.value || '').trim();
-  const city     = (document.getElementById('new-city')?.value  || '').trim();
-
-  if (!email || !password || !fullName) {
-    showToast('Please fill in name, email and password', 'error'); return;
-  }
-  if (password.length < 6) {
-    showToast('Password must be at least 6 characters', 'error'); return;
-  }
-
-  try {
-    const { data, error } = await sb.auth.signUp({
-      email, password,
-      options: { data: { full_name: fullName, role } }
-    });
-
-    if (error) {
-      if (error.status === 429 || error.message.toLowerCase().includes('rate')) {
-        showToast('⚠️ Email rate limit hit — disable email confirmation in Supabase Auth → Settings', 'error');
-      } else {
-        showToast(error.message, 'error');
-      }
-      return;
-    }
-
-    const userId = data?.user?.id;
-    if (!userId) {
-      showToast('User may already exist or confirmation is pending', 'error'); return;
-    }
-
-    const { error: tErr } = await sb.from('technicians').insert({
-      user_id: userId, full_name: fullName,
-      email, phone, city, role,
-      status: 'pending', is_active: false
-    });
-
-    if (tErr) {
-      showToast('Auth created but DB insert failed: ' + tErr.message, 'error'); return;
-    }
-
-    showToast(`✅ ${fullName} created!`, 'success');
-    closeModal('create-user-modal');
-    await loadAllData();
-
-  } catch (err) {
-    showToast('Error: ' + err.message, 'error');
-  }
-}
-
-// ── 21. RESET PASSWORD MODAL ─────────────────────────────────
-window.openResetPw = function (userId, name) {
-  setText('reset-pw-label', 'Reset password for ' + (name || 'user'));
-  const el = document.getElementById('reset-pw-uid');
-  if (el) el.value = userId;
-  const modal = document.getElementById('reset-pw-modal');
-  if (modal) modal.classList.add('open');
-  const errEl = document.getElementById('reset-pw-error');
-  if (errEl) errEl.textContent = '';
-};
-
-window.confirmResetPw = async function () {
-  const pw    = (document.getElementById('reset-pw-input')   || {}).value;
-  const pw2   = (document.getElementById('reset-pw-confirm') || {}).value;
-  const errEl = document.getElementById('reset-pw-error');
-
-  if (!pw || pw.length < 6) { if (errEl) errEl.textContent = 'Password must be at least 6 characters.'; return; }
-  if (pw !== pw2)            { if (errEl) errEl.textContent = 'Passwords do not match.'; return; }
-
-  const { error } = await sb.auth.updateUser({ password: pw });
-  if (error) { if (errEl) errEl.textContent = error.message; return; }
-
-  showToast('Password updated!');
-  closeModal('reset-pw-modal');
-};
-
-// ── 22. CREATE CLIENT MODAL ──────────────────────────────────
-window.openCreateClientModal = function () {
-  const modal = document.getElementById('create-client-modal');
-  if (modal) modal.classList.add('open');
-  const errEl = document.getElementById('cc-error');
-  if (errEl) errEl.textContent = '';
-};
-
-window.createClient = async function () {
-  const name    = (document.getElementById('cc-name')    || {}).value;
-  const email   = (document.getElementById('cc-email')   || {}).value;
-  const phone   = (document.getElementById('cc-phone')   || {}).value;
-  const city    = (document.getElementById('cc-city')    || {}).value;
-  const address = (document.getElementById('cc-address') || {}).value;
-  const errEl   = document.getElementById('cc-error');
-
-  if (!name) { if (errEl) errEl.textContent = 'Client name is required.'; return; }
-
-  const { error } = await sb.from('clients').insert([{
-    name: name, email: email || null, phone: phone || null,
-    city: city || null, address: address || null
-  }]);
-  if (error) { if (errEl) errEl.textContent = error.message; return; }
-
-  showToast('Client created!');
-  closeModal('create-client-modal');
-  await loadClients();
-  renderClients();
-};
-
-// ── 23. ACTIONS ───────────────────────────────────────────────
-window.deleteClient = async function (id) {
-  if (!confirm('Delete this client?')) return;
-  const { error } = await sb.from('clients').delete().eq('id', id);
-  if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  showToast('Client deleted.');
-  await loadClients(); renderClients();
-};
-
-window.approveTech = async function (id) {
-  const { error } = await sb.from('technicians').update({ status: 'active', is_active: true }).eq('id', id);
-  if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  showToast('Technician approved!');
-  await loadTechs(); updateStats(); renderApprovals();
-};
-
-window.rejectTech = async function (id) {
-  if (!confirm('Reject and remove this technician?')) return;
-  const { error } = await sb.from('technicians').delete().eq('id', id);
-  if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  showToast('Technician rejected.');
-  await loadTechs(); updateStats(); renderApprovals();
-};
-
-window.setTechStatus = async function (id, active) {
-  const { error } = await sb.from('technicians').update({ is_active: active }).eq('id', id);
-  if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  showToast(active ? 'Technician activated.' : 'Technician deactivated.');
-  await loadTechs(); renderTechs();
-};
-
-window.deleteTech = async function (id) {
-  if (!confirm('Permanently delete this technician?')) return;
-  const { error } = await sb.from('technicians').delete().eq('id', id);
-  if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  showToast('Technician deleted.');
-  await loadTechs(); updateStats(); renderTechs();
-};
-
-window.updateJobStatus = async function (id, status) {
-  const updates = { status: status };
-  if (status === 'completed') updates.check_out_time = new Date().toISOString();
-  const { error } = await sb.from('jobs').update(updates).eq('id', id);
-  if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  showToast('Job updated to ' + status + '.');
-  await loadJobs(); updateStats(); renderCurrentPanel();
-};
-
-window.resolveInfraction = async function (id) {
-  const { error } = await sb.from('infractions').update({ resolved: true, status: 'resolved' }).eq('id', id);
-  if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  showToast('Infraction resolved.');
-  await loadInfractions(); updateStats(); renderInfractions();
-};
-
-window.deleteInfraction = async function (id) {
-  if (!confirm('Delete this infraction record?')) return;
-  const { error } = await sb.from('infractions').delete().eq('id', id);
-  if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  showToast('Infraction deleted.');
-  await loadInfractions(); updateStats(); renderInfractions();
-};
-
-// ── 24. MODAL BACKDROP & ESCAPE ──────────────────────────────
-document.addEventListener('click', function (e) {
-  if (e.target.classList.contains('modal-overlay')) {
-    document.querySelectorAll('.modal-overlay.open').forEach(function (m) { m.classList.remove('open'); });
-  }
-});
-
-document.addEventListener('keydown', function (e) {
-  if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-overlay.open').forEach(function (m) { m.classList.remove('open'); });
-    closeSidebar();
-  }
-});
-
-// ── 25. XSS ESCAPE HELPER ─────────────────────────────────────
-function esc(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-// ── 26. BOOT — LOADER HIDES FIRST, THEN ASYNC ────────────────
+// ── Supabase init ──────────────────────────────────────────────
+const SUPA_URL = 'https://iazvpykfdckpffhakncd.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhenZweWtmZGNrcGZmaGFrbmNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNzA0MTEsImV4cCI6MjA5NTg0NjQxMX0.OOXhS1zLez30isOszxP0XOIyndpJq2jwqE90eY649bA'; // ← paste your anon key here
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ── Mapbox token ───────────────────────────────────────────────
+const MAPBOX_TOKEN = 'pk.eyJ1IjoicGx1c2gtaW50ZW50aW9ucyIsImEiOiJjbXA5ejJlcGwwMzQxMnJwdXBpZTg5NmYxIn0.i0wFsO5_bt70k942AsMNcg';
+
+// ── Global state ───────────────────────────────────────────────
+let allJobs         = [];
+let allTechs        = [];
+let allClients      = [];
+let allInfractions  = [];
+let mapInstance     = null;
+let techMarkers     = [];
+let currentAssignJobId = null;
+
+// ══════════════════════════════════════════════════════════════
+//  BOOT — DOMContentLoaded
+// ══════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', function () {
 
-  // ✅ STEP 1 — Hide loader RIGHT NOW (zero async, zero delay)
-  hideLoader();
+  // ✅ STEP 1 — Hide loader RIGHT NOW (zero async, zero await)
+  var loader = document.getElementById('loader');
+  if (loader) loader.style.display = 'none';
 
-  // ✅ STEP 2 — Render feather icons
-  if (typeof feather !== 'undefined') feather.replace();
+  // ✅ STEP 2 — Feather icons
+  if (window.feather) feather.replace();
 
-  // ✅ STEP 3 — Show the map panel immediately
+  // ✅ STEP 3 — Show default panel
   showPanel('map');
 
-  // ✅ STEP 4 — Session check runs in the background, never blocks UI
+  // ✅ STEP 4 — Session check in background (.then only, never await)
   sb.auth.getSession().then(function (result) {
-    const session = result.data && result.data.session;
+    var session = result && result.data && result.data.session;
     if (!session) {
       window.location.href = 'index.html';
       return;
     }
-    setText('signed-in-email', session.user.email || '');
-    window.loadAllData();
+    var emailEl = document.getElementById('signed-in-email');
+    if (emailEl) emailEl.textContent = session.user.email;
+
+    loadAllData();
+    initMap();
   }).catch(function (e) {
     console.warn('Session check failed:', e);
   });
-
 });
+
+// ══════════════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════════════
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.className = 'show' + (type === 'error' ? ' error' : type === 'success' ? ' success' : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function () { t.className = ''; }, 3500);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SIDEBAR
+// ══════════════════════════════════════════════════════════════
+function openSidebar() {
+  var sb2 = document.getElementById('sidebar');
+  var bd  = document.getElementById('sidebar-backdrop');
+  if (sb2) sb2.classList.add('open');
+  if (bd)  bd.classList.add('open');
+}
+window.openSidebar = openSidebar;
+
+function closeSidebar() {
+  var sb2 = document.getElementById('sidebar');
+  var bd  = document.getElementById('sidebar-backdrop');
+  if (sb2) sb2.classList.remove('open');
+  if (bd)  bd.classList.remove('open');
+}
+window.closeSidebar = closeSidebar;
+
+// ══════════════════════════════════════════════════════════════
+//  PANEL NAVIGATION
+// ══════════════════════════════════════════════════════════════
+var PANELS = ['map','jobs','pending','techs','clients','completed',
+              'approvals','workorders','infractions','earnings','usermgmt','newjob'];
+
+function showPanel(name) {
+  PANELS.forEach(function (p) {
+    var panel = document.getElementById('panel-' + p);
+    var nav   = document.getElementById('nav-' + p);
+    if (panel) panel.style.display = (p === name) ? '' : 'none';
+    if (nav)   nav.classList.toggle('active', p === name);
+  });
+  closeSidebar();
+  if (name === 'map' && mapInstance) {
+    setTimeout(function () { mapInstance.resize(); }, 200);
+  }
+  if (name === 'earnings') loadEarnings();
+}
+window.showPanel = showPanel;
+
+// ══════════════════════════════════════════════════════════════
+//  SIGN OUT
+// ══════════════════════════════════════════════════════════════
+function signOut() {
+  sb.auth.signOut().then(function () {
+    window.location.href = 'index.html';
+  });
+}
+window.signOut = signOut;
+
+// ══════════════════════════════════════════════════════════════
+//  LOAD ALL DATA
+// ══════════════════════════════════════════════════════════════
+function loadAllData() {
+  loadJobs();
+  loadTechs();
+  loadClients();
+  loadInfractions();
+}
+window.loadAllData = loadAllData;
+
+// ── Jobs ───────────────────────────────────────────────────────
+function loadJobs() {
+  sb.from('jobs').select('*, clients(name), technicians(full_name)').then(function (res) {
+    if (res.error) { console.error('jobs:', res.error); return; }
+    allJobs = res.data || [];
+    renderJobs();
+    updateStats();
+  });
+}
+
+function renderJobs() {
+  var allGrid       = document.getElementById('jobs-grid');
+  var pendingGrid   = document.getElementById('pending-grid');
+  var completedGrid = document.getElementById('completed-grid');
+  var woGrid        = document.getElementById('workorders-grid');
+  var badge         = document.getElementById('badge-pending');
+
+  var pending   = allJobs.filter(function (j) { return j.status === 'pending'; });
+  var completed = allJobs.filter(function (j) { return j.status === 'completed'; });
+
+  if (badge) badge.textContent = pending.length > 0 ? pending.length : '';
+
+  if (allGrid)       allGrid.innerHTML       = allJobs.map(jobCard).join('');
+  if (pendingGrid)   pendingGrid.innerHTML   = pending.map(jobCard).join('');
+  if (completedGrid) completedGrid.innerHTML = completed.map(jobCard).join('');
+  if (woGrid)        woGrid.innerHTML        = allJobs.map(jobCard).join('');
+
+  if (window.feather) feather.replace();
+}
+
+function jobCard(j) {
+  var clientName = (j.clients && j.clients.name) ? j.clients.name : 'No Client';
+  var techName   = (j.technicians && j.technicians.full_name) ? j.technicians.full_name : 'Unassigned';
+  var statusCls  = 'status-' + (j.status || 'pending');
+  var priCls     = 'pri-' + (j.priority || 'low');
+  return '<div class="job-card glass">' +
+    '<div class="job-card-header">' +
+      '<span class="job-title">' + esc(j.title || 'Untitled') + '</span>' +
+      '<span class="badge ' + statusCls + '">' + esc(j.status || 'pending') + '</span>' +
+    '</div>' +
+    '<div class="job-meta">' +
+      '<span><i data-feather="user"></i> ' + esc(clientName) + '</span>' +
+      '<span><i data-feather="tool"></i> ' + esc(techName) + '</span>' +
+      '<span class="badge ' + priCls + '">' + esc(j.priority || 'low') + '</span>' +
+    '</div>' +
+    (j.scheduled_date ? '<div class="job-date"><i data-feather="calendar"></i> ' +
+      esc(j.scheduled_date) + (j.scheduled_time ? ' @ ' + esc(j.scheduled_time) : '') + '</div>' : '') +
+    '<div class="job-actions">' +
+      '<button class="btn-sm btn-pink" onclick="openAssignModal(\'' + j.id + '\',\'' + esc(j.title) + '\')">Assign</button>' +
+    '</div>' +
+  '</div>';
+}
+
+// ── Technicians ────────────────────────────────────────────────
+function loadTechs() {
+  sb.from('technicians').select('*').then(function (res) {
+    if (res.error) { console.error('techs:', res.error); return; }
+    allTechs = res.data || [];
+    renderTechs();
+    renderApprovals();
+    renderUserMgmt();
+    updateStats();
+    placeTechMarkers();
+    populateTechSelects();
+  });
+}
+
+function renderTechs() {
+  var grid = document.getElementById('techs-grid');
+  if (!grid) return;
+  var active = allTechs.filter(function (t) { return t.status === 'approved' || t.status === 'active'; });
+  grid.innerHTML = active.length === 0
+    ? '<p class="empty-msg">No approved technicians yet.</p>'
+    : active.map(techCard).join('');
+  if (window.feather) feather.replace();
+}
+
+function techCard(t) {
+  return '<div class="tech-card glass">' +
+    '<div class="tech-name">' + esc(t.full_name || 'Unknown') + '</div>' +
+    '<div class="tech-meta">' +
+      '<span><i data-feather="mail"></i> ' + esc(t.email || '') + '</span>' +
+      '<span><i data-feather="phone"></i> ' + esc(t.phone || '') + '</span>' +
+      '<span><i data-feather="map-pin"></i> ' + esc(t.city || '') + '</span>' +
+    '</div>' +
+    '<div class="tech-skills">' + esc(t.skills || '') + '</div>' +
+    '<div class="tech-actions">' +
+      '<button class="btn-sm btn-outline" onclick="openResetPwModal(\'' + t.id + '\',\'' + esc(t.full_name) + '\')">Reset PW</button>' +
+    '</div>' +
+  '</div>';
+}
+
+// ── Approvals ──────────────────────────────────────────────────
+function renderApprovals() {
+  var grid  = document.getElementById('approvals-grid');
+  var badge = document.getElementById('badge-approvals');
+  if (!grid) return;
+  var pending = allTechs.filter(function (t) {
+    return t.status === 'pending_approval' || t.status === 'pending';
+  });
+  if (badge) badge.textContent = pending.length > 0 ? pending.length : '';
+  grid.innerHTML = pending.length === 0
+    ? '<p class="empty-msg">No pending approvals.</p>'
+    : pending.map(function (t) {
+        return '<div class="tech-card glass">' +
+          '<div class="tech-name">' + esc(t.full_name || 'Unknown') + '</div>' +
+          '<div class="tech-meta">' +
+            '<span>' + esc(t.email || '') + '</span>' +
+            '<span>' + esc(t.city || '') + '</span>' +
+          '</div>' +
+          '<div class="tech-actions">' +
+            '<button class="btn-sm btn-pink" onclick="approveTech(\'' + t.id + '\')">Approve</button>' +
+            '<button class="btn-sm btn-danger" onclick="rejectTech(\'' + t.id + '\')">Reject</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+  if (window.feather) feather.replace();
+}
+
+function approveTech(id) {
+  sb.from('technicians').update({ status: 'approved' }).eq('id', id).then(function (res) {
+    if (res.error) { showToast('Error: ' + res.error.message, 'error'); return; }
+    showToast('Technician approved!', 'success');
+    loadTechs();
+  });
+}
+window.approveTech = approveTech;
+
+function rejectTech(id) {
+  if (!confirm('Reject and delete this technician?')) return;
+  sb.from('technicians').delete().eq('id', id).then(function (res) {
+    if (res.error) { showToast('Error: ' + res.error.message, 'error'); return; }
+    showToast('Technician rejected.', 'success');
+    loadTechs();
+  });
+}
+window.rejectTech = rejectTech;
+
+// ── User Management ────────────────────────────────────────────
+function renderUserMgmt() {
+  var grid = document.getElementById('usermgmt-techs-grid');
+  if (!grid) return;
+  grid.innerHTML = allTechs.length === 0
+    ? '<p class="empty-msg">No users found.</p>'
+    : allTechs.map(function (t) {
+        return '<div class="tech-card glass">' +
+          '<div class="tech-name">' + esc(t.full_name || 'Unknown') + '</div>' +
+          '<div class="tech-meta">' +
+            '<span>' + esc(t.email || '') + '</span>' +
+            '<span class="badge status-' + esc(t.status || '') + '">' + esc(t.status || '') + '</span>' +
+          '</div>' +
+          '<div class="tech-actions">' +
+            '<button class="btn-sm btn-outline" onclick="openResetPwModal(\'' + t.id + '\',\'' + esc(t.full_name) + '\')">Reset PW</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+  if (window.feather) feather.replace();
+}
+
+// ── Clients ────────────────────────────────────────────────────
+function loadClients() {
+  sb.from('clients').select('*').then(function (res) {
+    if (res.error) { console.error('clients:', res.error); return; }
+    allClients = res.data || [];
+    renderClients();
+    populateClientSelect();
+  });
+}
+
+function renderClients() {
+  var tbody = document.getElementById('clients-tbody');
+  if (!tbody) return;
+  if (allClients.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;opacity:.6">No clients yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allClients.map(function (c) {
+    return '<tr>' +
+      '<td>' + esc(c.name || '') + '</td>' +
+      '<td>' + esc(c.email || '') + '</td>' +
+      '<td>' + esc(c.phone || '') + '</td>' +
+      '<td>' + esc(c.city || '') + '</td>' +
+      '<td><button class="btn-sm btn-danger" onclick="deleteClient(\'' + c.id + '\')">Delete</button></td>' +
+    '</tr>';
+  }).join('');
+}
+
+function deleteClient(id) {
+  if (!confirm('Delete this client?')) return;
+  sb.from('clients').delete().eq('id', id).then(function (res) {
+    if (res.error) { showToast('Error: ' + res.error.message, 'error'); return; }
+    showToast('Client deleted.', 'success');
+    loadClients();
+  });
+}
+window.deleteClient = deleteClient;
+
+// ── Infractions ────────────────────────────────────────────────
+function loadInfractions() {
+  sb.from('infractions').select('*, technicians(full_name)').then(function (res) {
+    if (res.error) { console.error('infractions:', res.error); return; }
+    allInfractions = res.data || [];
+    renderInfractions();
+  });
+}
+
+function renderInfractions() {
+  var grid  = document.getElementById('infractions-grid');
+  var badge = document.getElementById('badge-infractions');
+  if (!grid) return;
+  var open = allInfractions.filter(function (i) { return !i.resolved; });
+  if (badge) badge.textContent = open.length > 0 ? open.length : '';
+  if (allInfractions.length === 0) {
+    grid.innerHTML = '<p class="empty-msg">No infractions on record.</p>';
+    return;
+  }
+  grid.innerHTML = allInfractions.map(function (inf) {
+    var techName = (inf.technicians && inf.technicians.full_name)
+      ? inf.technicians.full_name : 'Unknown';
+    return '<div class="infraction-card glass ' + (inf.resolved ? 'resolved' : '') + '">' +
+      '<div class="inf-header">' +
+        '<span class="inf-tech">' + esc(techName) + '</span>' +
+        '<span class="badge sev-' + esc(inf.severity || 'low') + '">' + esc(inf.severity || 'low') + '</span>' +
+      '</div>' +
+      '<div class="inf-desc">' + esc(inf.description || '') + '</div>' +
+      '<div class="inf-reason">' + esc(inf.reason || '') + '</div>' +
+      (!inf.resolved
+        ? '<button class="btn-sm btn-pink" onclick="resolveInfraction(\'' + inf.id + '\')">Resolve</button>'
+        : '<span class="resolved-label">✓ Resolved</span>') +
+    '</div>';
+  }).join('');
+  if (window.feather) feather.replace();
+}
+
+function resolveInfraction(id) {
+  sb.from('infractions').update({ resolved: true, status: 'resolved' }).eq('id', id).then(function (res) {
+    if (res.error) { showToast('Error: ' + res.error.message, 'error'); return; }
+    showToast('Infraction resolved.', 'success');
+    loadInfractions();
+  });
+}
+window.resolveInfraction = resolveInfraction;
+
+// ── Earnings ───────────────────────────────────────────────────
+function loadEarnings() {
+  var completedJobs = allJobs.filter(function (j) { return j.status === 'completed'; });
+  var total = completedJobs.reduce(function (sum, j) {
+    return sum + (parseFloat(j.job_rate) || 0);
+  }, 0);
+  setText('earn-total', '$' + total.toFixed(2));
+  setText('earn-hours', (completedJobs.length * 2) + 'h');
+  setText('earn-count', completedJobs.length);
+  renderEarningsBreakdown(completedJobs);
+}
+window.loadEarnings = loadEarnings;
+
+function renderEarningsBreakdown(jobs) {
+  var el = document.getElementById('earnings-breakdown');
+  if (!el) return;
+  if (jobs.length === 0) { el.innerHTML = '<p class="empty-msg">No completed jobs yet.</p>'; return; }
+  el.innerHTML = jobs.map(function (j) {
+    return '<div class="earn-row glass">' +
+      '<span>' + esc(j.title || 'Untitled') + '</span>' +
+      '<span>$' + parseFloat(j.job_rate || 0).toFixed(2) + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+// ── Stats ──────────────────────────────────────────────────────
+function updateStats() {
+  var active  = allTechs.filter(function (t) {
+    return t.status === 'approved' || t.status === 'active';
+  }).length;
+  var pending = allJobs.filter(function (j) { return j.status === 'pending'; }).length;
+
+  setText('stat-jobs',    allJobs.length);
+  setText('stat-active',  active);
+  setText('stat-pending', pending);
+  setText('stat-techs',   allTechs.length);
+  setText('m-stat-jobs',    allJobs.length);
+  setText('m-stat-active',  active);
+  setText('m-stat-pending', pending);
+  setText('m-stat-techs',   allTechs.length);
+}
+
+function setText(id, val2) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = val2;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  MAP
+// ══════════════════════════════════════════════════════════════
+function initMap() {
+  if (mapInstance) return;
+  var container = document.getElementById('map-container');
+  if (!container) return;
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+  mapInstance = new mapboxgl.Map({
+    container: 'map-container',
+    style: 'mapbox://styles/mapbox/dark-v11',
+    center: [-82.0, 41.5],
+    zoom: 9
+  });
+  mapInstance.addControl(new mapboxgl.NavigationControl());
+}
+
+function placeTechMarkers() {
+  if (!mapInstance) return;
+  techMarkers.forEach(function (m) { m.remove(); });
+  techMarkers = [];
+  allTechs.forEach(function (t) {
+    if (!t.lat || !t.lng) return;
+    var el = document.createElement('div');
+    el.className = 'tech-marker';
+    el.title = t.full_name || 'Tech';
+    var marker = new mapboxgl.Marker(el)
+      .setLngLat([t.lng, t.lat])
+      .setPopup(new mapboxgl.Popup().setHTML(
+        '<strong>' + esc(t.full_name || '') + '</strong><br/>' +
+        esc(t.city || '') + '<br/>Status: ' + esc(t.status || '')
+      ))
+      .addTo(mapInstance);
+    techMarkers.push(marker);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SELECTS
+// ══════════════════════════════════════════════════════════════
+function populateTechSelects() {
+  var selects = [
+    document.getElementById('modal-tech-select'),
+    document.getElementById('nj-tech')
+  ];
+  var approved = allTechs.filter(function (t) {
+    return t.status === 'approved' || t.status === 'active';
+  });
+  selects.forEach(function (sel) {
+    if (!sel) return;
+    var current = sel.value;
+    sel.innerHTML = '<option value="">-- Select Tech --</option>' +
+      approved.map(function (t) {
+        return '<option value="' + t.id + '">' + esc(t.full_name || t.email) + '</option>';
+      }).join('');
+    if (current) sel.value = current;
+  });
+}
+
+function populateClientSelect() {
+  var sel = document.getElementById('nj-client');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- Select Client --</option>' +
+    allClients.map(function (c) {
+      return '<option value="' + c.id + '">' + esc(c.name) + '</option>';
+    }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ASSIGN MODAL
+// ══════════════════════════════════════════════════════════════
+function openAssignModal(jobId, jobTitle) {
+  currentAssignJobId = jobId;
+  var titleEl = document.getElementById('modal-job-title');
+  if (titleEl) titleEl.textContent = jobTitle || 'Job';
+  openModal('assign-modal');
+}
+window.openAssignModal = openAssignModal;
+
+function confirmAssign() {
+  var sel = document.getElementById('modal-tech-select');
+  if (!sel || !sel.value) { showToast('Select a technician first.', 'error'); return; }
+  if (!currentAssignJobId) { showToast('No job selected.', 'error'); return; }
+  sb.from('jobs').update({ technician_id: sel.value, status: 'assigned' })
+    .eq('id', currentAssignJobId).then(function (res) {
+      if (res.error) { showToast('Error: ' + res.error.message, 'error'); return; }
+      showToast('Technician assigned!', 'success');
+      closeModal('assign-modal');
+      loadJobs();
+    });
+}
+window.confirmAssign = confirmAssign;
+
+// ══════════════════════════════════════════════════════════════
+//  CREATE USER MODAL
+// ══════════════════════════════════════════════════════════════
+function openCreateUserModal() {
+  clearField('cu-name');
+  clearField('cu-email');
+  clearField('cu-password');
+  clearField('cu-phone');
+  clearField('cu-city');
+  var roleEl = document.getElementById('cu-role');
+  if (roleEl) roleEl.value = 'technician';
+  setError('cu-error', '');
+  toggleTechFields();
+  openModal('create-user-modal');
+}
+window.openCreateUserModal = openCreateUserModal;
+
+function toggleTechFields() {
+  var roleEl    = document.getElementById('cu-role');
+  var techBlock = document.getElementById('cu-tech-fields');
+  if (!roleEl || !techBlock) return;
+  techBlock.style.display = (roleEl.value === 'technician') ? '' : 'none';
+}
+window.toggleTechFields = toggleTechFields;
+
+function createUser() {
+  var name  = val('cu-name');
+  var email = val('cu-email');
+  var pass  = val('cu-password');
+  var role  = val('cu-role') || 'technician';
+  var phone = val('cu-phone');
+  var city  = val('cu-city');
+
+  if (!name || !email || !pass) {
+    setError('cu-error', 'Name, email and password are required.');
+    return;
+  }
+  if (pass.length < 6) {
+    setError('cu-error', 'Password must be at least 6 characters.');
+    return;
+  }
+
+  var btn = document.getElementById('cu-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+  setError('cu-error', '');
+
+  sb.auth.signUp({
+    email: email,
+    password: pass,
+    options: { data: { full_name: name, role: role } }
+  }).then(function (res) {
+    if (res.error) {
+      var msg = res.error.message || 'Signup error';
+      if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('email')) {
+        msg = 'Email rate limit reached. In Supabase → Authentication → Settings, ' +
+              'disable "Enable email confirmations" to fix this.';
+      }
+      setError('cu-error', msg);
+      if (btn) { btn.disabled = false; btn.textContent = 'Create User'; }
+      return;
+    }
+    var userId = res.data && res.data.user && res.data.user.id;
+    if (userId && role === 'technician') {
+      sb.from('technicians').insert({
+        user_id:   userId,
+        full_name: name,
+        email:     email,
+        phone:     phone,
+        city:      city,
+        status:    'approved',
+        role:      'technician',
+        is_active: true
+      }).then(function (insRes) {
+        if (insRes.error) console.warn('Tech row insert error:', insRes.error);
+      });
+    }
+    showToast('User created: ' + email, 'success');
+    closeModal('create-user-modal');
+    if (btn) { btn.disabled = false; btn.textContent = 'Create User'; }
+    loadTechs();
+  }).catch(function (e) {
+    setError('cu-error', e.message || 'Unknown error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Create User'; }
+  });
+}
+window.createUser = createUser;
+
+// ══════════════════════════════════════════════════════════════
+//  RESET PASSWORD MODAL
+// ══════════════════════════════════════════════════════════════
+function openResetPwModal(techId, techName) {
+  var uidEl   = document.getElementById('reset-pw-uid');
+  var labelEl = document.getElementById('reset-pw-label');
+  if (uidEl)   uidEl.value       = techId || '';
+  if (labelEl) labelEl.textContent = 'Reset password for: ' + (techName || '');
+  clearField('reset-pw-input');
+  clearField('reset-pw-confirm');
+  setError('reset-pw-error', '');
+  openModal('reset-pw-modal');
+}
+window.openResetPwModal = openResetPwModal;
+window.openResetPw = openResetPwModal;
+
+function confirmResetPw() {
+  var newPw    = val('reset-pw-input');
+  var confirm2 = val('reset-pw-confirm');
+  if (!newPw || newPw.length < 6) {
+    setError('reset-pw-error', 'Password must be at least 6 characters.');
+    return;
+  }
+  if (newPw !== confirm2) {
+    setError('reset-pw-error', 'Passwords do not match.');
+    return;
+  }
+  sb.auth.updateUser({ password: newPw }).then(function (res) {
+    if (res.error) { setError('reset-pw-error', res.error.message); return; }
+    showToast('Password updated!', 'success');
+    closeModal('reset-pw-modal');
+  });
+}
+window.confirmResetPw = confirmResetPw;
+
+// ══════════════════════════════════════════════════════════════
+//  CREATE CLIENT MODAL
+// ══════════════════════════════════════════════════════════════
+function openCreateClientModal() {
+  clearField('cc-name');
+  clearField('cc-email');
+  clearField('cc-phone');
+  clearField('cc-city');
+  clearField('cc-address');
+  setError('cc-error', '');
+  openModal('create-client-modal');
+}
+window.openCreateClientModal = openCreateClientModal;
+
+function createClient() {
+  var name    = val('cc-name');
+  var email   = val('cc-email');
+  var phone   = val('cc-phone');
+  var city    = val('cc-city');
+  var address = val('cc-address');
+
+  if (!name) { setError('cc-error', 'Client name is required.'); return; }
+
+  var btn = document.querySelector('#create-client-modal .btn-pink');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  setError('cc-error', '');
+
+  sb.from('clients')
+    .insert({ name: name, email: email, phone: phone, city: city, address: address })
+    .then(function (res) {
+      if (res.error) {
+        setError('cc-error', res.error.message);
+        if (btn) { btn.disabled = false; btn.textContent = 'Add Client'; }
+        return;
+      }
+      showToast('Client added!', 'success');
+      closeModal('create-client-modal');
+      if (btn) { btn.disabled = false; btn.textContent = 'Add Client'; }
+      loadClients();
+    });
+}
+window.createClient = createClient;
+
+// ══════════════════════════════════════════════════════════════
+//  NEW JOB / WORK ORDER
+// ══════════════════════════════════════════════════════════════
+function createWorkOrder() {
+  var title    = val('nj-title');
+  var desc     = val('nj-description');
+  var clientId = val('nj-client');
+  var techId   = val('nj-tech');
+  var priority = val('nj-priority') || 'low';
+  var rate     = val('nj-rate');
+  var date     = val('nj-date');
+  var time     = val('nj-time');
+  var notes    = val('nj-notes');
+
+  if (!title || !clientId) {
+    showToast('Title and client are required.', 'error');
+    return;
+  }
+
+  sb.from('jobs').insert({
+    title:          title,
+    description:    desc     || null,
+    client_id:      clientId || null,
+    technician_id:  techId   || null,
+    priority:       priority,
+    status:         techId ? 'assigned' : 'pending',
+    job_rate:       rate  ? parseFloat(rate) : null,
+    scheduled_date: date  || null,
+    scheduled_time: time  || null,
+    notes:          notes || null
+  }).then(function (res) {
+    if (res.error) { showToast('Error: ' + res.error.message, 'error'); return; }
+    showToast('Work order created!', 'success');
+    ['nj-title','nj-description','nj-client','nj-tech',
+     'nj-rate','nj-date','nj-time','nj-notes'].forEach(clearField);
+    loadJobs();
+    showPanel('workorders');
+  });
+}
+window.createWorkOrder = createWorkOrder;
+
+// ══════════════════════════════════════════════════════════════
+//  WORK ORDER FILTERS
+// ══════════════════════════════════════════════════════════════
+function filterWorkOrders(status, el) {
+  var tabs = document.querySelectorAll('.filter-tab');
+  tabs.forEach(function (t) { t.classList.remove('active'); });
+  if (el) el.classList.add('active');
+
+  var grid = document.getElementById('workorders-grid');
+  if (!grid) return;
+  var filtered = status === 'all'
+    ? allJobs
+    : allJobs.filter(function (j) { return j.status === status; });
+  grid.innerHTML = filtered.map(jobCard).join('');
+  if (window.feather) feather.replace();
+}
+window.filterWorkOrders = filterWorkOrders;
+
+// ══════════════════════════════════════════════════════════════
+//  MODAL HELPERS
+// ══════════════════════════════════════════════════════════════
+function openModal(id) {
+  var m = document.getElementById(id);
+  if (m) m.classList.add('open');
+}
+
+function closeModal(id) {
+  var m = document.getElementById(id);
+  if (m) m.classList.remove('open');
+}
+window.closeModal = closeModal;
+
+// ══════════════════════════════════════════════════════════════
+//  UTILITY
+// ══════════════════════════════════════════════════════════════
+function val(id) {
+  var el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+
+function clearField(id) {
+  var el = document.getElementById(id);
+  if (el) el.value = '';
+}
+
+function setError(id, msg) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = msg || '';
+}
+
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
