@@ -94,15 +94,25 @@ function showPanel(name) {
   PANELS.forEach(function (p) {
     var panel = document.getElementById('panel-' + p);
     var nav   = document.getElementById('nav-' + p);
-    if (panel) panel.style.display = (p === name) ? '' : 'none';
-    if (nav)   nav.classList.toggle('active', p === name);
+
+    if (panel) {
+      panel.classList.toggle('active', p === name);
+    }
+
+    if (nav) {
+      nav.classList.toggle('active', p === name);
+    }
   });
+
   closeSidebar();
+
   if (name === 'map' && mapInstance) {
     setTimeout(function () { mapInstance.resize(); }, 200);
   }
+
   if (name === 'earnings') loadEarnings();
 }
+
 window.showPanel = showPanel;
 
 // ══════════════════════════════════════════════════════════════
