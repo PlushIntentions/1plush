@@ -781,3 +781,11 @@ function esc(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+
+if (job.technician_id === null) {
+  showAssignButton(job.id);
+} else {
+  showUnassignButton(job.id);
+}
+
