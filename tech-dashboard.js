@@ -2,17 +2,21 @@
    tech-dashboard.js — Plush Intentions Technician Dashboard
    ============================================================ */
 
-let sb;                 // Supabase client
-let map;                // Mapbox map instance
-let jobMarkers = [];    // Map markers
-let currentUser = null; // Supabase auth user
-let techRecord = null;  // Technician record
+let sb;
+let map;
+let jobMarkers = [];
+let currentUser = null;
+let techRecord = null;
 let currentJobForSignout = null;
 let currentJobForFiles = null;
+let pendingDeclineJobId = null;
 
-/* ─────────────────────────────────────────
-   SUPABASE INIT
-───────────────────────────────────────── */
+/* CONFIG: set these */
+const SUPABASE_URL = "https://YOUR_PROJECT.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR_ANON_KEY";
+const MAPBOX_TOKEN = "YOUR_MAPBOX_TOKEN";
+
+/* SUPABASE INIT */
 function initSupabase() {
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
@@ -24,47 +28,17 @@ window.addEventListener("load", async () => {
   const { data: session } = await sb.auth.getSession();
 
   if (!session || !session.session) {
-    // No logged-in user → send back to login page
-    window.location.href = "/login.html"; 
+    window.location.href = "/login.html";
     return;
   }
 
   currentUser = session.session.user;
-
-  // Boot the dashboard normally
   await bootApp();
 });
 
-
-
-/* ─────────────────────────────────────────
-   LOGIN
-───────────────────────────────────────── */
-async function doLogin() {
-  const email = document.getElementById("login-email").value.trim();
-  const password = document.getElementById("login-password").value.trim();
-
-  if (!email || !password) {
-    showToast("Please enter email and password.");
-    return;
-  }
-
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if (error || !data.user) {
-    showToast("Login failed. Check your credentials.");
-    return;
-  }
-
-  currentUser = data.user;
-  await bootApp();
-}
-
-/* ─────────────────────────────────────────
-   BOOT APP (GATING LOGIC)
-───────────────────────────────────────── */
+/* BOOT APP */
 async function bootApp() {
-  document.getElementById("login-screen").classList.add("hidden");
-  document.getElementById("main-panel").classList.remove("hidden");
+  document.getElementById("loader").classList.remove("hidden");
 
   const { data, error } = await sb
     .from("technicians")
@@ -74,30 +48,36 @@ async function bootApp() {
 
   if (error || !data) {
     showToast("Technician record not found.");
+    document.getElementById("loader").classList.add("hidden");
     return;
   }
 
   techRecord = data;
 
+  document.getElementById("main-panel").classList.remove("hidden");
+
   if (techRecord.status === "pending_documents") {
     showOnboardingPanel();
+    document.getElementById("loader").classList.add("hidden");
     return;
   }
 
   if (techRecord.status === "pending_approval") {
     showApprovalPanel();
+    document.getElementById("loader").classList.add("hidden");
     return;
   }
 
   await initMap();
   await loadJobs();
+  await loadUnassignedJobs();
   renderProfile();
   showPanel("map-panel");
+
+  document.getElementById("loader").classList.add("hidden");
 }
 
-/* ─────────────────────────────────────────
-   ONBOARDING PANEL
-───────────────────────────────────────── */
+/* ONBOARDING PANEL */
 function showOnboardingPanel() {
   hideAllPanels();
   document.getElementById("onboarding-panel").classList.remove("hidden");
@@ -137,17 +117,13 @@ async function uploadAllDocuments() {
   showApprovalPanel();
 }
 
-/* ─────────────────────────────────────────
-   APPROVAL PANEL
-───────────────────────────────────────── */
+/* APPROVAL PANEL */
 function showApprovalPanel() {
   hideAllPanels();
   document.getElementById("approval-panel").classList.remove("hidden");
 }
 
-/* ─────────────────────────────────────────
-   MAP INIT
-───────────────────────────────────────── */
+/* MAP INIT */
 async function initMap() {
   mapboxgl.accessToken = MAPBOX_TOKEN;
   map = new mapboxgl.Map({
@@ -160,9 +136,7 @@ async function initMap() {
   map.addControl(new mapboxgl.NavigationControl(), "top-right");
 }
 
-/* ─────────────────────────────────────────
-   LOAD JOBS
-───────────────────────────────────────── */
+/* LOAD JOBS */
 async function loadJobs() {
   const { data: jobs, error } = await sb
     .from("jobs")
@@ -186,9 +160,7 @@ async function loadJobs() {
   plotJobsOnMap(jobs);
 }
 
-/* ─────────────────────────────────────────
-   RENDER ACTIVE JOBS
-───────────────────────────────────────── */
+/* RENDER ACTIVE JOBS */
 function renderActiveJobs(jobs) {
   const el = document.getElementById("active-list");
   el.innerHTML = "";
@@ -237,9 +209,7 @@ function renderActiveJobs(jobs) {
   });
 }
 
-/* ─────────────────────────────────────────
-   RENDER COMPLETED JOBS
-───────────────────────────────────────── */
+/* RENDER COMPLETED JOBS */
 function renderCompletedJobs(jobs) {
   const el = document.getElementById("completed-list");
   el.innerHTML = "";
@@ -273,9 +243,7 @@ function renderCompletedJobs(jobs) {
   });
 }
 
-/* ─────────────────────────────────────────
-   MAP MARKERS
-───────────────────────────────────────── */
+/* MAP MARKERS */
 function plotJobsOnMap(jobs) {
   jobMarkers.forEach(m => m.remove());
   jobMarkers = [];
@@ -301,9 +269,7 @@ function plotJobsOnMap(jobs) {
   });
 }
 
-/* ─────────────────────────────────────────
-   LOCATION CHECK
-───────────────────────────────────────── */
+/* LOCATION CHECK */
 function isWithinOneMile(lat1, lng1, lat2, lng2) {
   const R = 3958.8;
   const toRad = x => x * Math.PI / 180;
@@ -319,9 +285,7 @@ function isWithinOneMile(lat1, lng1, lat2, lng2) {
   return R * c <= 1;
 }
 
-/* ─────────────────────────────────────────
-   CHECK-IN
-───────────────────────────────────────── */
+/* CHECK-IN */
 async function checkIn(jobId) {
   const { data: job } = await sb
     .from("jobs")
@@ -345,9 +309,7 @@ async function checkIn(jobId) {
   loadJobs();
 }
 
-/* ─────────────────────────────────────────
-   MARK COMPLETE → OPEN SIGNOUT PANEL
-───────────────────────────────────────── */
+/* MARK COMPLETE → SIGNOUT PANEL */
 async function markComplete(jobId) {
   const { data: job } = await sb
     .from("jobs")
@@ -368,9 +330,7 @@ async function markComplete(jobId) {
   document.getElementById("signout-panel").classList.remove("hidden");
 }
 
-/* ─────────────────────────────────────────
-   SIGNOUT PANEL ACTIONS
-───────────────────────────────────────── */
+/* SIGNOUT PANEL ACTIONS */
 function cancelSignOutUpload() {
   currentJobForSignout = null;
   document.getElementById("signout-panel").classList.add("hidden");
@@ -417,9 +377,7 @@ async function submitSignOutSheet() {
   loadJobs();
 }
 
-/* ─────────────────────────────────────────
-   FILE DOWNLOAD PANEL
-───────────────────────────────────────── */
+/* FILE DOWNLOAD PANEL */
 async function openFilesPanel(jobId) {
   currentJobForFiles = jobId;
 
@@ -467,9 +425,7 @@ async function recordFileDownload(jobId, fileName) {
     .eq("id", jobId);
 }
 
-/* ─────────────────────────────────────────
-   FILE REMINDER (ONCE PER JOB)
-───────────────────────────────────────── */
+/* FILE REMINDER */
 function shouldShowFilesWarning(job) {
   if (!job.start_time) return false;
   if (job.files_downloaded) return false;
@@ -502,16 +458,12 @@ async function checkFileReminder(job) {
   });
 }
 
-/* ─────────────────────────────────────────
-   DIRECTIONS
-───────────────────────────────────────── */
+/* DIRECTIONS */
 function openDirections(address) {
   window.open(`https://www.google.com/maps/dir/?api=1&destination=${address}`, "_blank");
 }
 
-/* ─────────────────────────────────────────
-   PROFILE
-───────────────────────────────────────── */
+/* PROFILE */
 function renderProfile() {
   const el = document.getElementById("profile-content");
 
@@ -526,9 +478,7 @@ function renderProfile() {
   `;
 }
 
-/* ─────────────────────────────────────────
-   PANEL SWITCHING
-───────────────────────────────────────── */
+/* PANEL SWITCHING */
 function hideAllPanels() {
   [
     "map-panel",
@@ -538,7 +488,8 @@ function hideAllPanels() {
     "onboarding-panel",
     "approval-panel",
     "signout-panel",
-    "files-panel"
+    "files-panel",
+    "unassigned-panel"
   ].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add("hidden");
@@ -546,5 +497,171 @@ function hideAllPanels() {
 }
 
 function showPanel(panelId) {
-  ["map-panel","active-panel","completed-panel","profile-panel"]
-    .
+  hideAllPanels();
+  document.getElementById(panelId).classList.remove("hidden");
+
+  if (panelId === "unassigned-panel") {
+    loadUnassignedJobs();
+  }
+}
+
+/* UNASSIGNED JOBS */
+async function loadUnassignedJobs() {
+  const { data, error } = await sb
+    .from("jobs")
+    .select(`
+      *,
+      clients (name, address)
+    `)
+    .is("tech_id", null)
+    .eq("status", "unassigned");
+
+  const el = document.getElementById("unassigned-list");
+  el.innerHTML = "";
+
+  if (error) {
+    el.innerHTML = "<p>Failed to load unassigned jobs.</p>";
+    return;
+  }
+
+  if (!data || !data.length) {
+    el.innerHTML = "<p>No unassigned jobs available.</p>";
+    return;
+  }
+
+  data.forEach(job => {
+    const card = document.createElement("div");
+    card.className = "job-card";
+
+    card.innerHTML = `
+      <span class="status-pill status-active">Unassigned</span>
+      <h3>${job.title || "Untitled Job"}</h3>
+
+      <div class="job-meta">
+        <div><strong>Client:</strong> ${job.clients?.name || "N/A"}</div>
+        <div><strong>Address:</strong> ${job.clients?.address || "N/A"}</div>
+        <div><strong>Start:</strong> ${formatDate(job.start_time)}</div>
+        <div><strong>End:</strong> ${formatDate(job.end_time)}</div>
+      </div>
+
+      <div class="job-actions">
+        <button class="btn-brand" onclick="requestWorkOrder('${job.id}')">Request Work Order</button>
+        <button class="btn-action" onclick="startDeclineFlow('${job.id}')">Decline Work Order</button>
+      </div>
+    `;
+
+    el.appendChild(card);
+  });
+}
+
+/* REQUEST WORK ORDER (ADMIN APPROVAL) */
+async function requestWorkOrder(jobId) {
+  const { error } = await sb
+    .from("job_requests")
+    .insert({
+      job_id: jobId,
+      tech_id: techRecord.id
+    });
+
+  if (error) {
+    showToast("Failed to request work order.");
+    return;
+  }
+
+  showToast("Work order requested. Awaiting admin approval.");
+}
+
+/* DECLINE LIMITS */
+async function getDeclineCounts() {
+  const now = new Date();
+  const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const sixtyAgo = new Date(now - 60 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await sb
+    .from("job_declines")
+    .select("declined_at")
+    .eq("tech_id", techRecord.id);
+
+  if (error || !data) return { weekCount: 0, sixtyCount: 0 };
+
+  const weekCount = data.filter(d => d.declined_at >= weekAgo).length;
+  const sixtyCount = data.filter(d => d.declined_at >= sixtyAgo).length;
+
+  return { weekCount, sixtyCount };
+}
+
+/* START DECLINE FLOW (MODAL) */
+async function startDeclineFlow(jobId) {
+  const { weekCount, sixtyCount } = await getDeclineCounts();
+
+  if (weekCount >= 3 || sixtyCount >= 12) {
+    const msg = `
+You have reached the maximum allowed declines.
+
+Weekly limit: 3 declines (you have ${weekCount})
+60-day limit: 12 declines (you have ${sixtyCount})
+
+Further declines may result in removal from the platform and this decline is blocked.
+    `;
+    document.getElementById("decline-modal-text").textContent = msg.trim();
+    pendingDeclineJobId = null;
+    document.getElementById("decline-modal").classList.remove("hidden");
+    return;
+  }
+
+  const msg = `
+Declining work orders too often may result in removal from the platform.
+
+Weekly limit: 3 declines (you have ${weekCount})
+60-day limit: 12 declines (you have ${sixtyCount})
+
+Do you still want to decline this work order?
+  `;
+  document.getElementById("decline-modal-text").textContent = msg.trim();
+  pendingDeclineJobId = jobId;
+  document.getElementById("decline-modal").classList.remove("hidden");
+}
+
+/* MODAL CONTROLS */
+function closeDeclineModal() {
+  pendingDeclineJobId = null;
+  document.getElementById("decline-modal").classList.add("hidden");
+}
+
+/* CONFIRM DECLINE */
+async function confirmDecline() {
+  if (!pendingDeclineJobId) {
+    closeDeclineModal();
+    return;
+  }
+
+  const jobId = pendingDeclineJobId;
+
+  await sb.from("job_declines").insert({
+    job_id: jobId,
+    tech_id: techRecord.id
+  });
+
+  await sb.from("jobs")
+    .update({ status: "declined" })
+    .eq("id", jobId);
+
+  showToast("Work order declined.");
+  closeDeclineModal();
+  loadUnassignedJobs();
+}
+
+/* UTIL: FORMAT DATE */
+function formatDate(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  return d.toLocaleString();
+}
+
+/* TOAST */
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 3000);
+}
