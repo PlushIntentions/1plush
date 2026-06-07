@@ -17,6 +17,25 @@ function initSupabase() {
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
+/* AUTO‑AUTH CHECK (NO LOGIN SCREEN ON THIS PAGE) */
+window.addEventListener("load", async () => {
+  initSupabase();
+
+  const { data: session } = await sb.auth.getSession();
+
+  if (!session || !session.session) {
+    // No logged-in user → send back to login page
+    window.location.href = "/tech-login.html"; 
+    return;
+  }
+
+  currentUser = session.session.user;
+
+  // Boot the dashboard normally
+  await bootApp();
+});
+
+
 /* ─────────────────────────────────────────
    LOGIN
 ───────────────────────────────────────── */
