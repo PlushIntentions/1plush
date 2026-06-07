@@ -28,5 +28,59 @@ async function hasAllRequiredDocs(userId) {
 
   return true;
 }
+async function initTechDashboard() {
+  const session = await sb.auth.getSession();
+  const user = session.data.session.user;
+
+  const { data: tech } = await sb.from("technicians")
+    .select("*")
+    .eq("user_id", user.id)
+    .single();
+
+  // 1. If missing documents → show upload tool only
+  if (tech.status === "pending_documents") {
+    const ready = await hasAllRequiredDocs(user.id);
+
+    if (!ready) {
+      showDocumentUploadPanel();
+      hideWorkOrderPanels();
+      return;
+    }
+
+    // All docs uploaded → move to pending_approval
+    await sb.from("technicians")
+      .update({ status: "pending_approval" })
+      .eq("user_id", user.id);
+
+    showWaitingForApprovalPanel();
+    hideWorkOrderPanels();
+    return;
+  }
+
+  // 2. If waiting for admin approval
+  if (tech.status === "pending_approval") {
+    showWaitingForApprovalPanel();
+    hideWorkOrderPanels();
+    return;
+  }
+
+  // 3. If approved → show work orders
+  if (tech.status === "approved" || tech.status === "active") {
+    showWorkOrderPanels();
+    return;
+  }
+}
+
+
+
+async function hasSignOutSheets(workOrderId, userId) {
+  const { data, error } = await sb.storage
+    .from("workorder-signouts")
+    .list(`${userId}/${workOrderId}/`);
+
+  return data && data.length > 0;
+}
+
+
 
 
