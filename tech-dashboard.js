@@ -9,3 +9,24 @@ async function loadTechDashboard() {
 }
 
 loadTechDashboard();
+
+
+async function hasAllRequiredDocs(userId) {
+  const buckets = [
+    "technician-msa",
+    "technician-w9",
+    "technician-nda",
+    "technician-ids"
+  ];
+
+  for (const bucket of buckets) {
+    const { data, error } = await sb.storage.from(bucket).list(userId + "/");
+    if (error || !data || data.length === 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
