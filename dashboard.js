@@ -572,12 +572,14 @@ function createUser() {
   }).then(function (res) {
     if (res.error) {
       var msg = res.error.message || 'Signup error';
-      
-      setError('cu-error', msg)
+      setError('cu-error', msg);
       if (btn) { btn.disabled = false; btn.textContent = 'Create User'; }
       return;
     }
+
     var userId = res.data && res.data.user && res.data.user.id;
+
+    // Insert into technicians table if role = technician
     if (userId && role === 'technician') {
       sb.from('technicians').insert({
         user_id:   userId,
@@ -592,9 +594,12 @@ function createUser() {
         if (insRes.error) console.warn('Tech row insert error:', insRes.error);
       });
     }
+
     showToast('User created: ' + email, 'success');
     closeModal('create-user-modal');
     if (btn) { btn.disabled = false; btn.textContent = 'Create User'; }
+
+    // Refresh the correct panel
     loadTechs();
   }).catch(function (e) {
     setError('cu-error', e.message || 'Unknown error');
@@ -602,6 +607,7 @@ function createUser() {
   });
 }
 window.createUser = createUser;
+
 
 // ══════════════════════════════════════════════════════════════
 //  RESET PASSWORD MODAL
