@@ -25,7 +25,7 @@ window.addEventListener("load", async () => {
 
   if (!session || !session.session) {
     // No logged-in user → send back to login page
-    window.location.href = "/tech-login.html"; 
+    window.location.href = "/login.html"; 
     return;
   }
 
@@ -34,6 +34,7 @@ window.addEventListener("load", async () => {
   // Boot the dashboard normally
   await bootApp();
 });
+
 
 
 /* ─────────────────────────────────────────
