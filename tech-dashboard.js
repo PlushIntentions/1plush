@@ -2,9 +2,6 @@
    tech-dashboard.js — Plush Intentions Technician Dashboard
    ============================================================ */
 
-/* ─────────────────────────────────────────
-   GLOBAL STATE
-───────────────────────────────────────── */
 let sb;                 // Supabase client
 let map;                // Mapbox map instance
 let jobMarkers = [];    // Map markers
@@ -21,7 +18,7 @@ function initSupabase() {
 }
 
 /* ─────────────────────────────────────────
-   AUTH + LOGIN
+   LOGIN
 ───────────────────────────────────────── */
 async function doLogin() {
   const email = document.getElementById("login-email").value.trim();
@@ -62,7 +59,6 @@ async function bootApp() {
 
   techRecord = data;
 
-  // Onboarding / approval gating
   if (techRecord.status === "pending_documents") {
     showOnboardingPanel();
     return;
@@ -73,7 +69,6 @@ async function bootApp() {
     return;
   }
 
-  // Approved → full dashboard
   await initMap();
   await loadJobs();
   renderProfile();
@@ -131,14 +126,14 @@ function showApprovalPanel() {
 }
 
 /* ─────────────────────────────────────────
-   MAP INIT + JOB PINS
+   MAP INIT
 ───────────────────────────────────────── */
 async function initMap() {
   mapboxgl.accessToken = MAPBOX_TOKEN;
   map = new mapboxgl.Map({
     container: "map",
     style: "mapbox://styles/mapbox/streets-v11",
-    center: [-81.6326, 38.3498], // Charleston, WV default
+    center: [-81.6326, 38.3498],
     zoom: 11
   });
 
@@ -179,8 +174,7 @@ function renderActiveJobs(jobs) {
   el.innerHTML = "";
 
   if (!jobs.length) {
-    el.innerHTML = `<div class="empty-state"><i data-feather="clipboard"></i><p>No active jobs yet</p></div>`;
-    feather.replace();
+    el.innerHTML = `<div class="empty-state"><p>No active jobs yet</p></div>`;
     return;
   }
 
@@ -201,35 +195,26 @@ function renderActiveJobs(jobs) {
       ${checkedInBadge}
       ${filesWarningBadge}
       <h3>${job.title || "Untitled Job"}</h3>
+
       <div class="job-meta">
-        <div class="job-meta-item"><strong>Client</strong><br>${job.clients?.name || "N/A"}</div>
-        <div class="job-meta-item"><strong>Address</strong><br>${job.clients?.address || "N/A"}</div>
-        <div class="job-meta-item"><strong>Start</strong><br>${job.start_time ? formatDate(job.start_time) : "—"}</div>
-        <div class="job-meta-item"><strong>End</strong><br>${job.end_time ? formatDate(job.end_time) : "—"}</div>
+        <div><strong>Client:</strong> ${job.clients?.name || "N/A"}</div>
+        <div><strong>Address:</strong> ${job.clients?.address || "N/A"}</div>
+        <div><strong>Start:</strong> ${formatDate(job.start_time)}</div>
+        <div><strong>End:</strong> ${formatDate(job.end_time)}</div>
       </div>
+
       <div class="job-actions">
-        <button class="btn-action btn-start" onclick="checkIn('${job.id}')">
-          ⏱ Check In
-        </button>
-        <button class="btn-action btn-complete" onclick="markComplete('${job.id}')">
-          ✓ Mark Complete
-        </button>
-        <button class="btn-action btn-files" onclick="openFilesPanel('${job.id}')">
-          📄 Download Files
-        </button>
-        ${job.clients?.address ? `
-        <button class="btn-action btn-map" onclick="openDirections('${encodeURIComponent(job.clients.address)}')">
-          🗺 Directions
-        </button>` : ""}
+        <button class="btn-action btn-start" onclick="checkIn('${job.id}')">⏱ Check In</button>
+        <button class="btn-action btn-complete" onclick="markComplete('${job.id}')">✓ Mark Complete</button>
+        <button class="btn-action btn-files" onclick="openFilesPanel('${job.id}')">📄 Download Files</button>
+        <button class="btn-action btn-map" onclick="openDirections('${encodeURIComponent(job.clients.address)}')">🗺 Directions</button>
       </div>
     `;
+
     el.appendChild(card);
 
-    // 48-hour reminder (once per job)
     checkFileReminder(job);
   });
-
-  feather.replace();
 }
 
 /* ─────────────────────────────────────────
@@ -240,8 +225,7 @@ function renderCompletedJobs(jobs) {
   el.innerHTML = "";
 
   if (!jobs.length) {
-    el.innerHTML = `<div class="empty-state"><i data-feather="check-circle"></i><p>No completed jobs yet</p></div>`;
-    feather.replace();
+    el.innerHTML = `<div class="empty-state"><p>No completed jobs yet</p></div>`;
     return;
   }
 
@@ -256,22 +240,21 @@ function renderCompletedJobs(jobs) {
     card.innerHTML = `
       <span class="status-pill status-completed">✓ Completed</span>
       ${checkedInBadge}
-      <h3>${job.title || "Untitled Job"}</h3>
+      <h3>${job.title}</h3>
+
       <div class="job-meta">
-        <div class="job-meta-item"><strong>Client</strong><br>${job.clients?.name || "N/A"}</div>
-        <div class="job-meta-item"><strong>Address</strong><br>${job.clients?.address || "N/A"}</div>
-        <div class="job-meta-item"><strong>Started</strong><br>${job.start_time ? formatDate(job.start_time) : "—"}</div>
-        <div class="job-meta-item"><strong>Completed</strong><br>${job.completed_time ? formatDate(job.completed_time) : "—"}</div>
+        <div><strong>Client:</strong> ${job.clients?.name}</div>
+        <div><strong>Address:</strong> ${job.clients?.address}</div>
+        <div><strong>Completed:</strong> ${formatDate(job.completed_time)}</div>
       </div>
     `;
+
     el.appendChild(card);
   });
-
-  feather.replace();
 }
 
 /* ─────────────────────────────────────────
-   PLOT JOB PINS ON MAP
+   MAP MARKERS
 ───────────────────────────────────────── */
 function plotJobsOnMap(jobs) {
   jobMarkers.forEach(m => m.remove());
@@ -282,12 +265,11 @@ function plotJobsOnMap(jobs) {
 
     const el = document.createElement("div");
     el.className = "job-marker";
-    el.title = job.clients?.name || job.title;
 
     const popup = new mapboxgl.Popup({ offset: 12 }).setHTML(`
-      <strong style="color:#111">${job.title}</strong><br/>
-      <span style="color:#555;font-size:12px">${job.clients?.name}</span><br/>
-      <span style="color:#555;font-size:12px">${job.clients?.address}</span>
+      <strong>${job.title}</strong><br/>
+      ${job.clients.name}<br/>
+      ${job.clients.address}
     `);
 
     const marker = new mapboxgl.Marker(el)
@@ -300,356 +282,17 @@ function plotJobsOnMap(jobs) {
 }
 
 /* ─────────────────────────────────────────
-   LOCATION HELPERS
+   LOCATION CHECK
 ───────────────────────────────────────── */
 function isWithinOneMile(lat1, lng1, lat2, lng2) {
-  const R = 3958.8; // miles
+  const R = 3958.8;
   const toRad = x => x * Math.PI / 180;
 
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
 
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLng / 2) ** 2;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLng/2)**2;
 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c;
-
-  return distance <= 1;
-}
-
-/* ─────────────────────────────────────────
-   CHECK-IN (LOCATION RESTRICTED)
-───────────────────────────────────────── */
-async function checkIn(jobId) {
-  const { data: job, error } = await sb
-    .from("jobs")
-    .select("id, start_time, clients (lat, lng)")
-    .eq("id", jobId)
-    .single();
-
-  if (error || !job?.clients?.lat || !job?.clients?.lng) {
-    showToast("Job location missing.");
-    return;
-  }
-
-  const techLat = techRecord.lat;
-  const techLng = techRecord.lng;
-
-  if (!isWithinOneMile(techLat, techLng, job.clients.lat, job.clients.lng)) {
-    showToast("You must be within 1 mile of the worksite to check in.");
-    return;
-  }
-
-  const { error: updErr } = await sb.from("jobs")
-    .update({ check_in_time: new Date().toISOString() })
-    .eq("id", jobId);
-
-  if (updErr) {
-    showToast("Failed to record check-in.");
-    return;
-  }
-
-  showToast("Checked in successfully!");
-  await loadJobs();
-}
-
-/* ─────────────────────────────────────────
-   MARK COMPLETE (LOCATION + FORM)
-───────────────────────────────────────── */
-async function markComplete(jobId) {
-  const { data: job, error } = await sb
-    .from("jobs")
-    .select("id, clients (lat, lng)")
-    .eq("id", jobId)
-    .single();
-
-  if (error || !job?.clients?.lat || !job?.clients?.lng) {
-    showToast("Job location missing.");
-    return;
-  }
-
-  const techLat = techRecord.lat;
-  const techLng = techRecord.lng;
-
-  if (!isWithinOneMile(techLat, techLng, job.clients.lat, job.clients.lng)) {
-    showToast("You must be within 1 mile of the worksite to complete this job.");
-    return;
-  }
-
-  // Open completion / sign-out panel
-  currentJobForSignout = jobId;
-  document.getElementById("active-panel").classList.add("hidden");
-  document.getElementById("signout-panel").classList.remove("hidden");
-}
-
-/* ─────────────────────────────────────────
-   SIGN-OUT PANEL ACTIONS
-───────────────────────────────────────── */
-function cancelSignOutUpload() {
-  currentJobForSignout = null;
-  document.getElementById("signout-panel").classList.add("hidden");
-  document.getElementById("active-panel").classList.remove("hidden");
-}
-
-async function submitSignOutSheet() {
-  const file = document.getElementById("signout-file").files[0];
-  const manager = document.getElementById("manager-name").value.trim();
-  const rating = document.getElementById("tech-rating").value;
-  const satisfied = document.getElementById("satisfied").value;
-  const systemWorking = document.getElementById("system-working").value;
-  const notes = document.getElementById("completion-notes").value.trim();
-
-  if (!file || !manager || !rating || !satisfied || !systemWorking) {
-    showToast("Please complete all required fields.");
-    return;
-  }
-
-  if ((satisfied === "no" || systemWorking === "no") && notes.length < 5) {
-    showToast("Please provide notes for issues.");
-    return;
-  }
-
-  const jobId = currentJobForSignout;
-  if (!jobId) {
-    showToast("No job selected.");
-    return;
-  }
-
-  const path = `${jobId}/${file.name}`;
-  const { error: uploadErr } = await sb.storage
-    .from("signout_sheets")
-    .upload(path, file, { upsert: true });
-
-  if (uploadErr) {
-    showToast("Upload failed.");
-    return;
-  }
-
-  const { error: updErr } = await sb.from("jobs")
-    .update({
-      status: "completed",
-      completed_time: new Date().toISOString(),
-      manager_name: manager,
-      rating,
-      satisfied,
-      system_working: systemWorking,
-      notes
-    })
-    .eq("id", jobId);
-
-  if (updErr) {
-    showToast("Failed to update job.");
-    return;
-  }
-
-  showToast("Job completed!");
-  cancelSignOutUpload();
-  await loadJobs();
-}
-
-/* ─────────────────────────────────────────
-   FILES PANEL (DOWNLOAD WORKORDER FILES)
-───────────────────────────────────────── */
-async function openFilesPanel(jobId) {
-  currentJobForFiles = jobId;
-
-  const { data: files, error } = await sb.storage
-    .from("workorder_files")
-    .list(`${jobId}/`);
-
-  const list = document.getElementById("files-list");
-  list.innerHTML = "";
-
-  if (error || !files || !files.length) {
-    list.innerHTML = "<p>No files available for this work order.</p>";
-  } else {
-    files.forEach(f => {
-      const link = document.createElement("a");
-      link.textContent = f.name;
-      link.href = sb.storage.from("workorder_files").getPublicUrl(`${jobId}/${f.name}`).data.publicUrl;
-      link.target = "_blank";
-      link.className = "file-link";
-      link.onclick = () => recordFileDownload(jobId, f.name);
-      list.appendChild(link);
-    });
-  }
-
-  document.getElementById("active-panel").classList.add("hidden");
-  document.getElementById("files-panel").classList.remove("hidden");
-}
-
-function closeFilesPanel() {
-  currentJobForFiles = null;
-  document.getElementById("files-panel").classList.add("hidden");
-  document.getElementById("active-panel").classList.remove("hidden");
-}
-
-async function recordFileDownload(jobId, fileName) {
-  await sb.from("jobs_files_downloads").insert({
-    job_id: jobId,
-    tech_id: currentUser.id,
-    file_name: fileName,
-    downloaded_at: new Date().toISOString()
-  });
-
-  // Mark job as files_downloaded for reminder logic
-  await sb.from("jobs")
-    .update({ files_downloaded: true })
-    .eq("id", jobId);
-}
-
-/* ─────────────────────────────────────────
-   FILE REMINDER (ONCE PER JOB)
-───────────────────────────────────────── */
-function shouldShowFilesWarning(job) {
-  if (!job.start_time) return false;
-  if (job.files_downloaded) return false;
-
-  const now = new Date();
-  const start = new Date(job.start_time);
-  const hoursLeft = (start - now) / 36e5;
-
-  return hoursLeft <= 48;
-}
-
-async function checkFileReminder(job) {
-  if (!shouldShowFilesWarning(job)) return;
-
-  const { data: reminded, error } = await sb
-    .from("jobs_file_reminders")
-    .select("*")
-    .eq("job_id", job.id)
-    .eq("tech_id", currentUser.id)
-    .maybeSingle();
-
-  if (error) return;
-  if (reminded) return;
-
-  showToast("Reminder: Please download all work order files before your job starts.");
-
-  await sb.from("jobs_file_reminders").insert({
-    job_id: job.id,
-    tech_id: currentUser.id,
-    reminded_at: new Date().toISOString()
-  });
-}
-
-/* ─────────────────────────────────────────
-   DIRECTIONS
-───────────────────────────────────────── */
-function openDirections(address) {
-  window.open(`https://www.google.com/maps/dir/?api=1&destination=${address}`, "_blank");
-}
-
-/* ─────────────────────────────────────────
-   PROFILE
-───────────────────────────────────────── */
-function renderProfile() {
-  const el = document.getElementById("profile-content");
-  if (!techRecord) {
-    el.innerHTML = "<p>Loading…</p>";
-    return;
-  }
-
-  el.innerHTML = `
-    <div class="profile-grid">
-      <div class="profile-field">
-        <label>Full Name</label>
-        <span>${techRecord.name || "—"}</span>
-      </div>
-      <div class="profile-field">
-        <label>Email</label>
-        <span>${currentUser.email}</span>
-      </div>
-      <div class="profile-field">
-        <label>Phone</label>
-        <span>${techRecord.phone || "—"}</span>
-      </div>
-      <div class="profile-field">
-        <label>Status</label>
-        <span>${techRecord.status || "Active"}</span>
-      </div>
-      <div class="profile-field">
-        <label>Member Since</label>
-        <span>${techRecord.created_at ? formatDate(techRecord.created_at) : "—"}</span>
-      </div>
-      <div class="profile-field">
-        <label>Last Seen</label>
-        <span>${techRecord.last_seen ? formatDate(techRecord.last_seen) : "—"}</span>
-      </div>
-    </div>
-  `;
-}
-
-/* ─────────────────────────────────────────
-   PANEL SWITCHING
-───────────────────────────────────────── */
-function hideAllPanels() {
-  const all = [
-    "map-panel",
-    "active-panel",
-    "completed-panel",
-    "profile-panel",
-    "onboarding-panel",
-    "approval-panel",
-    "signout-panel",
-    "files-panel"
-  ];
-  all.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.add("hidden");
-  });
-}
-
-function showPanel(panelId) {
-  const all = ["map-panel","active-panel","completed-panel","profile-panel"];
-  all.forEach(id => document.getElementById(id).classList.add("hidden"));
-  document.getElementById(panelId).classList.remove("hidden");
-
-  const navMap = {
-    "map-panel":"nav-map","active-panel":"nav-active",
-    "completed-panel":"nav-completed","profile-panel":"nav-profile"
-  };
-  document.querySelectorAll(".sidebar a").forEach(a => a.classList.remove("active"));
-  const navEl = document.getElementById(navMap[panelId]);
-  if (navEl) navEl.classList.add("active");
-
-  if (panelId === "map-panel" && map) {
-    setTimeout(() => map.resize(), 200);
-  }
-}
-
-/* ─────────────────────────────────────────
-   HELPERS
-───────────────────────────────────────── */
-function formatDate(iso) {
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short", day: "numeric",
-    year: "numeric", hour: "2-digit", minute: "2-digit"
-  });
-}
-
-function showToast(msg) {
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 3000);
-}
-
-/* ─────────────────────────────────────────
-   KEYBOARD SHORTCUTS
-───────────────────────────────────────── */
-document.addEventListener("keydown", e => {
-  if (e.key === "Enter" && !document.getElementById("login-screen").classList.contains("hidden")) {
-    doLogin();
-  }
-});
-
-/* ─────────────────────────────────────────
-   INITIALIZE
-───────────────────────────────────────── */
-window.addEventListener("load", () => {
-  initSupabase();
-});
+  const c = 2 * Math.atan2(Math.sqrt(a), Math
