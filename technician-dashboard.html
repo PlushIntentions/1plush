@@ -22,8 +22,6 @@
   <div class="spinner"></div>
 </div>
 
-
-
 <!-- MAIN DASHBOARD -->
 <div id="main-panel" class="main-panel glass hidden">
 
@@ -33,6 +31,7 @@
     <a id="nav-map" onclick="showPanel('map-panel')">Map</a>
     <a id="nav-active" onclick="showPanel('active-panel')">Active Jobs</a>
     <a id="nav-completed" onclick="showPanel('completed-panel')">Completed</a>
+    <a id="nav-unassigned" onclick="showPanel('unassigned-panel')">Unassigned Jobs</a>
     <a id="nav-profile" onclick="showPanel('profile-panel')">Profile</a>
   </div>
 
@@ -56,6 +55,12 @@
   <div id="completed-panel" class="panel hidden">
     <h2>Completed Jobs</h2>
     <div id="completed-list"></div>
+  </div>
+
+  <!-- UNASSIGNED JOBS PANEL -->
+  <div id="unassigned-panel" class="panel hidden">
+    <h2>Unassigned Jobs</h2>
+    <div id="unassigned-list"></div>
   </div>
 
   <!-- PROFILE PANEL -->
@@ -154,6 +159,19 @@
 <!-- TOAST -->
 <div id="toast"></div>
 
+<!-- DECLINE WARNING MODAL -->
+<div id="decline-modal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeDeclineModal()"></div>
+  <div class="modal-card glass">
+    <h3>Declining Work Orders</h3>
+    <p id="decline-modal-text"></p>
+    <div class="modal-actions">
+      <button class="btn-action" onclick="closeDeclineModal()">Cancel</button>
+      <button class="btn-brand" onclick="confirmDecline()">Confirm Decline</button>
+    </div>
+  </div>
+</div>
+
 <!-- Mapbox -->
 <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
 
@@ -170,4 +188,3 @@
 
 </body>
 </html>
-
