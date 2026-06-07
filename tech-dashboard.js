@@ -295,4 +295,236 @@ function isWithinOneMile(lat1, lng1, lat2, lng2) {
             Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
             Math.sin(dLng/2)**2;
 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c <= 1;
+}
+
+/* ─────────────────────────────────────────
+   CHECK-IN
+───────────────────────────────────────── */
+async function checkIn(jobId) {
+  const { data: job } = await sb
+    .from("jobs")
+    .select("id, clients (lat, lng)")
+    .eq("id", jobId)
+    .single();
+
+  const techLat = techRecord.lat;
+  const techLng = techRecord.lng;
+
+  if (!isWithinOneMile(techLat, techLng, job.clients.lat, job.clients.lng)) {
+    showToast("You must be within 1 mile of the worksite to check in.");
+    return;
+  }
+
+  await sb.from("jobs")
+    .update({ check_in_time: new Date().toISOString() })
+    .eq("id", jobId);
+
+  showToast("Checked in successfully!");
+  loadJobs();
+}
+
+/* ─────────────────────────────────────────
+   MARK COMPLETE → OPEN SIGNOUT PANEL
+───────────────────────────────────────── */
+async function markComplete(jobId) {
+  const { data: job } = await sb
+    .from("jobs")
+    .select("id, clients (lat, lng)")
+    .eq("id", jobId)
+    .single();
+
+  const techLat = techRecord.lat;
+  const techLng = techRecord.lng;
+
+  if (!isWithinOneMile(techLat, techLng, job.clients.lat, job.clients.lng)) {
+    showToast("You must be within 1 mile of the worksite to complete this job.");
+    return;
+  }
+
+  currentJobForSignout = jobId;
+  document.getElementById("active-panel").classList.add("hidden");
+  document.getElementById("signout-panel").classList.remove("hidden");
+}
+
+/* ─────────────────────────────────────────
+   SIGNOUT PANEL ACTIONS
+───────────────────────────────────────── */
+function cancelSignOutUpload() {
+  currentJobForSignout = null;
+  document.getElementById("signout-panel").classList.add("hidden");
+  document.getElementById("active-panel").classList.remove("hidden");
+}
+
+async function submitSignOutSheet() {
+  const file = document.getElementById("signout-file").files[0];
+  const manager = document.getElementById("manager-name").value.trim();
+  const rating = document.getElementById("tech-rating").value;
+  const satisfied = document.getElementById("satisfied").value;
+  const systemWorking = document.getElementById("system-working").value;
+  const notes = document.getElementById("completion-notes").value.trim();
+
+  if (!file || !manager || !rating || !satisfied || !systemWorking) {
+    showToast("Please complete all required fields.");
+    return;
+  }
+
+  if ((satisfied === "no" || systemWorking === "no") && notes.length < 5) {
+    showToast("Please provide notes for issues.");
+    return;
+  }
+
+  const jobId = currentJobForSignout;
+
+  await sb.storage.from("signout_sheets")
+    .upload(`${jobId}/${file.name}`, file, { upsert: true });
+
+  await sb.from("jobs")
+    .update({
+      status: "completed",
+      completed_time: new Date().toISOString(),
+      manager_name: manager,
+      rating,
+      satisfied,
+      system_working: systemWorking,
+      notes
+    })
+    .eq("id", jobId);
+
+  showToast("Job completed!");
+  cancelSignOutUpload();
+  loadJobs();
+}
+
+/* ─────────────────────────────────────────
+   FILE DOWNLOAD PANEL
+───────────────────────────────────────── */
+async function openFilesPanel(jobId) {
+  currentJobForFiles = jobId;
+
+  const { data: files } = await sb.storage
+    .from("workorder_files")
+    .list(`${jobId}/`);
+
+  const list = document.getElementById("files-list");
+  list.innerHTML = "";
+
+  if (!files || !files.length) {
+    list.innerHTML = "<p>No files available.</p>";
+  } else {
+    files.forEach(f => {
+      const link = document.createElement("a");
+      link.textContent = f.name;
+      link.href = sb.storage.from("workorder_files").getPublicUrl(`${jobId}/${f.name}`).data.publicUrl;
+      link.target = "_blank";
+      link.className = "file-link";
+      link.onclick = () => recordFileDownload(jobId, f.name);
+      list.appendChild(link);
+    });
+  }
+
+  document.getElementById("active-panel").classList.add("hidden");
+  document.getElementById("files-panel").classList.remove("hidden");
+}
+
+function closeFilesPanel() {
+  currentJobForFiles = null;
+  document.getElementById("files-panel").classList.add("hidden");
+  document.getElementById("active-panel").classList.remove("hidden");
+}
+
+async function recordFileDownload(jobId, fileName) {
+  await sb.from("jobs_files_downloads").insert({
+    job_id: jobId,
+    tech_id: currentUser.id,
+    file_name: fileName,
+    downloaded_at: new Date().toISOString()
+  });
+
+  await sb.from("jobs")
+    .update({ files_downloaded: true })
+    .eq("id", jobId);
+}
+
+/* ─────────────────────────────────────────
+   FILE REMINDER (ONCE PER JOB)
+───────────────────────────────────────── */
+function shouldShowFilesWarning(job) {
+  if (!job.start_time) return false;
+  if (job.files_downloaded) return false;
+
+  const now = new Date();
+  const start = new Date(job.start_time);
+  const hoursLeft = (start - now) / 36e5;
+
+  return hoursLeft <= 48;
+}
+
+async function checkFileReminder(job) {
+  if (!shouldShowFilesWarning(job)) return;
+
+  const { data: reminded } = await sb
+    .from("jobs_file_reminders")
+    .select("*")
+    .eq("job_id", job.id)
+    .eq("tech_id", currentUser.id)
+    .maybeSingle();
+
+  if (reminded) return;
+
+  showToast("Reminder: Please download all work order files before your job starts.");
+
+  await sb.from("jobs_file_reminders").insert({
+    job_id: job.id,
+    tech_id: currentUser.id,
+    reminded_at: new Date().toISOString()
+  });
+}
+
+/* ─────────────────────────────────────────
+   DIRECTIONS
+───────────────────────────────────────── */
+function openDirections(address) {
+  window.open(`https://www.google.com/maps/dir/?api=1&destination=${address}`, "_blank");
+}
+
+/* ─────────────────────────────────────────
+   PROFILE
+───────────────────────────────────────── */
+function renderProfile() {
+  const el = document.getElementById("profile-content");
+
+  el.innerHTML = `
+    <div class="profile-grid">
+      <div><label>Name</label><span>${techRecord.name}</span></div>
+      <div><label>Email</label><span>${currentUser.email}</span></div>
+      <div><label>Phone</label><span>${techRecord.phone || "—"}</span></div>
+      <div><label>Status</label><span>${techRecord.status}</span></div>
+      <div><label>Member Since</label><span>${formatDate(techRecord.created_at)}</span></div>
+    </div>
+  `;
+}
+
+/* ─────────────────────────────────────────
+   PANEL SWITCHING
+───────────────────────────────────────── */
+function hideAllPanels() {
+  [
+    "map-panel",
+    "active-panel",
+    "completed-panel",
+    "profile-panel",
+    "onboarding-panel",
+    "approval-panel",
+    "signout-panel",
+    "files-panel"
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add("hidden");
+  });
+}
+
+function showPanel(panelId) {
+  ["map-panel","active-panel","completed-panel","profile-panel"]
+    .
