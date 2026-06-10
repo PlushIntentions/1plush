@@ -1,190 +1,177 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Plush Intentions Technician Dashboard</title>
+  <meta charset="UTF-8" />
+  <title>Plush Intentions — Technician Portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-<!-- Mapbox -->
-<link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <!-- Mapbox CSS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
 
-<!-- Feather Icons -->
-<script src="https://unpkg.com/feather-icons"></script>
-
-<!-- Technician Dashboard CSS -->
-<link rel="stylesheet" href="tech-dashboard.css" />
-
+  <!-- Technician Dashboard CSS -->
+  <link rel="stylesheet" href="/technician-dashboard.css" />
 </head>
 <body>
 
-<!-- LOADER -->
-<div id="loader" class="loader hidden">
-  <div class="spinner"></div>
-</div>
+  <!-- LOADER (optional, can hook later) -->
+  <div id="loader" class="glass hidden">
+    <img src="/logo.html" alt="Plush Intentions" class="loader-logo">
+    <div class="loader-text">Loading Technician Portal</div>
+  </div>
 
-<!-- MAIN DASHBOARD -->
-<div id="main-panel" class="main-panel glass hidden">
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+  <!-- SIDEBAR BACKDROP (mobile) -->
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
   <!-- SIDEBAR -->
-  <div class="sidebar glass">
-    <div class="brand">Plush Intentions</div>
-    <a id="nav-map" onclick="showPanel('map-panel')">Map</a>
-    <a id="nav-active" onclick="showPanel('active-panel')">Active Jobs</a>
-    <a id="nav-completed" onclick="showPanel('completed-panel')">Completed</a>
-    <a id="nav-unassigned" onclick="showPanel('unassigned-panel')">Unassigned Jobs</a>
-    <a id="nav-profile" onclick="showPanel('profile-panel')">Profile</a>
-  </div>
-
-  <!-- TOP BAR -->
-  <div class="topbar glass">
-    Technician Dashboard
-  </div>
-
-  <!-- MAP PANEL -->
-  <div id="map-panel" class="panel">
-    <div id="map"></div>
-  </div>
-
-  <!-- ACTIVE JOBS PANEL -->
-  <div id="active-panel" class="panel hidden">
-    <h2>Active Jobs</h2>
-    <div id="active-list"></div>
-  </div>
-
-  <!-- COMPLETED JOBS PANEL -->
-  <div id="completed-panel" class="panel hidden">
-    <h2>Completed Jobs</h2>
-    <div id="completed-list"></div>
-  </div>
-
-  <!-- UNASSIGNED JOBS PANEL -->
-  <div id="unassigned-panel" class="panel hidden">
-    <h2>Unassigned Jobs</h2>
-    <div id="unassigned-list"></div>
-  </div>
-
-  <!-- PROFILE PANEL -->
-  <div id="profile-panel" class="panel hidden">
-    <h2>Your Profile</h2>
-    <div id="profile-content"></div>
-  </div>
-
-  <!-- ONBOARDING PANEL -->
-  <div id="onboarding-panel" class="panel hidden">
-    <div class="login-card glass" style="max-width:420px;margin:40px auto;">
-      <img src="logo.png" />
-      <h2>Complete Your Onboarding</h2>
-
-      <label>MSA</label>
-      <input type="file" id="doc-msa" />
-
-      <label>NDA</label>
-      <input type="file" id="doc-nda" />
-
-      <label>W‑9</label>
-      <input type="file" id="doc-w9" />
-
-      <label>Government ID</label>
-      <input type="file" id="doc-id" />
-
-      <button class="btn-brand" onclick="uploadAllDocuments()">Submit Documents</button>
-    </div>
-  </div>
-
-  <!-- APPROVAL PANEL -->
-  <div id="approval-panel" class="panel hidden">
-    <div class="login-card glass" style="max-width:420px;margin:40px auto;">
-      <img src="logo.png" />
-      <h2>Documents Submitted</h2>
-      <p>Your documents are under review.</p>
-    </div>
-  </div>
-
-  <!-- SIGN-OUT SHEET PANEL -->
-  <div id="signout-panel" class="panel hidden">
-    <div style="display:flex;justify-content:flex-end;">
-      <button class="close-btn" onclick="cancelSignOutUpload()">✕</button>
+  <aside class="sidebar glass" id="sidebar">
+    <div class="sidebar-header">
+      <div class="brand">
+        <img src="/logo.html" alt="Plush Intentions">
+        <div>
+          <div class="brand-title">Plush Intentions</div>
+          <div class="brand-sub">Technician Portal</div>
+        </div>
+      </div>
+      <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Close sidebar">
+        ✕
+      </button>
     </div>
 
-    <h2>Complete Work Order</h2>
-
-    <label>Sign‑Out Sheet</label>
-    <input type="file" id="signout-file" />
-
-    <label>Manager on Duty Name</label>
-    <input type="text" id="manager-name" />
-
-    <label>Technician Performance</label>
-    <select id="tech-rating">
-      <option value="">Select</option>
-      <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
-      <option value="4">⭐⭐⭐⭐ Good</option>
-      <option value="3">⭐⭐⭐ Average</option>
-      <option value="2">⭐⭐ Poor</option>
-      <option value="1">⭐ Very Poor</option>
-    </select>
-
-    <label>Satisfied?</label>
-    <select id="satisfied">
-      <option value="">Select</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-
-    <label>System Working?</label>
-    <select id="system-working">
-      <option value="">Select</option>
-      <option value="yes">Yes</option>
-      <option value="no">No</option>
-    </select>
-
-    <label>Notes</label>
-    <textarea id="completion-notes"></textarea>
-
-    <button class="btn-brand" onclick="submitSignOutSheet()">Submit Completion</button>
-  </div>
-
-  <!-- FILES PANEL -->
-  <div id="files-panel" class="panel hidden">
-    <div style="display:flex;justify-content:flex-end;">
-      <button class="close-btn" onclick="closeFilesPanel()">✕</button>
+    <div class="sidebar-stats">
+      <div class="ss-card pink">
+        <div class="val" id="statAssigned">0</div>
+        <div class="lbl">Assigned</div>
+      </div>
+      <div class="ss-card blue">
+        <div class="val" id="statAvailable">0</div>
+        <div class="lbl">Available</div>
+      </div>
     </div>
 
-    <h2>Work Order Files</h2>
-    <div id="files-list"></div>
-  </div>
+    <div class="nav-section">Navigation</div>
 
-</div>
-
-<!-- TOAST -->
-<div id="toast"></div>
-
-<!-- DECLINE WARNING MODAL -->
-<div id="decline-modal" class="modal hidden">
-  <div class="modal-backdrop" onclick="closeDeclineModal()"></div>
-  <div class="modal-card glass">
-    <h3>Declining Work Orders</h3>
-    <p id="decline-modal-text"></p>
-    <div class="modal-actions">
-      <button class="btn-action" onclick="closeDeclineModal()">Cancel</button>
-      <button class="btn-brand" onclick="confirmDecline()">Confirm Decline</button>
+    <div class="nav-link active" data-panel="panel-dashboard">
+      <span>Dashboard</span>
     </div>
+    <div class="nav-link" data-panel="panel-assigned">
+      <span>Assigned Jobs</span>
+      <span class="nav-badge" id="badgeAssigned"></span>
+    </div>
+    <div class="nav-link" data-panel="panel-available">
+      <span>Available Jobs</span>
+      <span class="nav-badge" id="badgeAvailable"></span>
+    </div>
+    <div class="nav-link" data-panel="panel-earnings">
+      <span>Earnings</span>
+    </div>
+    <div class="nav-link" data-panel="panel-map">
+      <span>Map</span>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="signed-in-email" id="signedInEmail"></div>
+      <button class="btn-signout" id="btnSignOut">
+        <span>Sign Out</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <button class="hamburger" id="sidebarOpenBtn" aria-label="Open sidebar">
+        ☰
+      </button>
+      <div class="topbar-title" id="topbarTitle">Dashboard</div>
+      <button class="topbar-refresh" id="btnRefresh" aria-label="Refresh">
+        ⟳
+      </button>
+    </header>
+
+    <!-- MOBILE STATS BAR -->
+    <div class="mobile-stats-bar">
+      <div class="msb-card">
+        <div class="msb-val" id="msbAssigned">0</div>
+        <div class="msb-lbl">Assigned</div>
+      </div>
+      <div class="msb-card">
+        <div class="msb-val" id="msbAvailable">0</div>
+        <div class="msb-lbl">Available</div>
+      </div>
+    </div>
+
+    <!-- PANELS -->
+    <main class="panel active" id="panel-dashboard">
+      <div class="panel-header">
+        <h2>Welcome Technician</h2>
+      </div>
+      <p class="section-heading">Overview</p>
+      <div class="earnings-summary">
+        <div class="earn-card pink">
+          <div class="earn-val" id="dashToday">$0.00</div>
+          <div class="earn-lbl">Today</div>
+        </div>
+        <div class="earn-card blue">
+          <div class="earn-val" id="dashWeek">$0.00</div>
+          <div class="earn-lbl">This Week</div>
+        </div>
+        <div class="earn-card green">
+          <div class="earn-val" id="dashMonth">$0.00</div>
+          <div class="earn-lbl">This Month</div>
+        </div>
+      </div>
+    </main>
+
+    <main class="panel" id="panel-assigned">
+      <div class="panel-header">
+        <h2>Assigned Jobs</h2>
+      </div>
+      <div class="card-grid" id="assignedJobsGrid"></div>
+    </main>
+
+    <main class="panel" id="panel-available">
+      <div class="panel-header">
+        <h2>Available Jobs</h2>
+      </div>
+      <div class="card-grid" id="availableJobsGrid"></div>
+    </main>
+
+    <main class="panel" id="panel-earnings">
+      <div class="panel-header">
+        <h2>Earnings</h2>
+      </div>
+      <div class="earnings-summary">
+        <div class="earn-card pink">
+          <div class="earn-val" id="earnToday">$0.00</div>
+          <div class="earn-lbl">Today</div>
+        </div>
+        <div class="earn-card blue">
+          <div class="earn-val" id="earnWeek">$0.00</div>
+          <div class="earn-lbl">This Week</div>
+        </div>
+        <div class="earn-card green">
+          <div class="earn-val" id="earnMonth">$0.00</div>
+          <div class="earn-lbl">This Month</div>
+        </div>
+      </div>
+    </main>
+
+    <main class="panel" id="panel-map">
+      <div id="map-container">
+        <div id="mapbox"></div>
+      </div>
+    </main>
   </div>
-</div>
 
-<!-- Mapbox -->
-<script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-
-<!-- Supabase -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-
-<!-- Technician Dashboard JS -->
-<script src="tech-dashboard.js"></script>
-
-<!-- Feather Icons Init -->
-<script>
-  feather.replace();
-</script>
-
+  <!-- Supabase v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Mapbox JS -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <!-- Technician Dashboard Logic -->
+  <script src="/technician-dashboard.js"></script>
 </body>
 </html>
