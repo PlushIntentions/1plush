@@ -827,3 +827,76 @@ async function loadAdminRequests() {
   renderAdminRequests(enriched);
 }
 window.loadAdminRequests = loadAdminRequests;
+
+function renderAdminRequests(jobs) {
+  var el = document.getElementById('admin-requests-list');
+  if (!el) return;
+
+  if (jobs.length === 0) {
+    el.innerHTML = '<p class="empty-msg">No pending workorder requests.</p>';
+    return;
+  }
+
+  el.innerHTML = jobs.map(job => {
+    return `
+      <div class="job-card glass">
+        <h3>${job.title}</h3>
+        <p><strong>Client:</strong> ${job.clients?.name || ''}</p>
+        <p><strong>Address:</strong> ${job.clients?.address || ''}</p>
+        <p><strong>Scheduled:</strong> ${job.scheduled_date} ${job.scheduled_time || ''}</p>
+
+        <p><strong>Requested By:</strong></p>
+        <ul>${job.requested_names.map(n => `<li>${n}</li>`).join('')}</ul>
+
+        <label>Select Technician:</label>
+        <select id="approve-${job.id}">
+          ${job.requested_by.map((id, i) => `
+            <option value="${id}">${job.requested_names[i]}</option>
+          `).join("")}
+        </select>
+
+        <button class="btn-sm btn-pink" onclick="approveRequest('${job.id}')">Approve</button>
+        <button class="btn-sm btn-danger" onclick="rejectRequest('${job.id}')">Reject All</button>
+      </div>
+    `;
+  }).join('');
+}
+window.renderAdminRequests = renderAdminRequests;
+function approveRequest(jobId) {
+  var sel = document.getElementById('approve-' + jobId);
+  var techId = sel ? sel.value : null;
+
+  sb.from('jobs')
+    .update({
+      technician_id: techId,
+      status: 'assigned',
+      requested_by: []
+    })
+    .eq('id', jobId)
+    .then(function(res) {
+      if (res.error) {
+        showToast('Error approving request', 'error');
+        return;
+      }
+      showToast('Request approved!', 'success');
+      loadAdminRequests();
+      loadJobs();
+    });
+}
+window.approveRequest = approveRequest;
+
+function rejectRequest(jobId) {
+  sb.from('jobs')
+    .update({ requested_by: [] })
+    .eq('id', jobId)
+    .then(function(res) {
+      if (res.error) {
+        showToast('Error rejecting request', 'error');
+        return;
+      }
+      showToast('Request rejected.', 'success');
+      loadAdminRequests();
+    });
+}
+window.rejectRequest = rejectRequest;
+
