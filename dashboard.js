@@ -795,23 +795,7 @@ if (job.technician_id === null) {
   showUnassignButton(job.id);
 }
 
-/* ---------------------------------------------------------
-   GET SINGLE JOB (Admin + Dispatcher)
---------------------------------------------------------- */
-export async function getJob(jobId) {
-  const { data, error } = await supabase
-    .from('jobs')
-    .select('*')
-    .eq('id', jobId)
-    .single();
 
-  if (error) {
-    console.error('Get Job Error:', error);
-    return { error };
-  }
-
-  return { data };
-}
 async function loadAdminRequests() {
   const { data: jobs, error } = await sb
     .from("jobs")
