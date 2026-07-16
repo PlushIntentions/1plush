@@ -20,6 +20,34 @@ const MAPBOX_TOKEN = "pk.eyJ1IjoicGx1c2gtaW50ZW50aW9ucyIsImEiOiJjbXA5ejJlcGwwMzQ
 function initSupabase() {
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
+async function waitForSession() {
+  let tries = 0;
+
+  while (tries < 10) {
+    const { data } = await sb.auth.getSession();
+    if (data.session) return data.session;
+
+    await new Promise(r => setTimeout(r, 300));
+    tries++;
+  }
+
+  return null;
+}
+
+function showMainPanel() {
+  const panel = document.getElementById("main-panel");
+  if (panel) panel.classList.remove("hidden");
+}
+
+function showLoader() {
+  const loader = document.getElementById("loader");
+  if (loader) loader.classList.remove("hidden");
+}
+
+function hideLoader() {
+  const loader = document.getElementById("loader");
+  if (loader) loader.classList.add("hidden");
+}
 
 /* AUTO‑AUTH CHECK (NO LOGIN SCREEN ON THIS PAGE) */
 window.addEventListener("load", async () => {
