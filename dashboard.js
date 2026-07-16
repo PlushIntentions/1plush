@@ -919,4 +919,3 @@ function rejectRequest(requestId) {
     });
 }
 window.rejectRequest = rejectRequest;
-
