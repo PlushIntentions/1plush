@@ -184,6 +184,7 @@ function renderAdminRequests(jobs) {
 async function approveRequest(jobId) {
   const techId = document.getElementById(`approve-${jobId}`).value;
 
+  // Assign job
   const { error } = await sb
     .from("jobs")
     .update({
@@ -194,15 +195,30 @@ async function approveRequest(jobId) {
     })
     .eq("id", jobId);
 
-  if (error) {
-    console.error(error);
-    showToast("Approval failed.");
-    return;
-  }
+  if (error) throw error;
+
+  // Fetch technician email
+  const { data: techProfile } = await sb
+    .from("profiles")
+    .select("email")
+    .eq("id", techId)
+    .maybeSingle();
+
+  // Send notification
+  await fetch("https://admin.plushintentions.work/api/send-approval-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      to: techProfile.email,
+      jobId,
+      message: "Your workorder request has been approved."
+    })
+  });
 
   showToast("Workorder approved.");
   loadAdminRequests();
 }
+
 
 async function rejectRequest(jobId) {
   const { error } = await sb
