@@ -798,17 +798,33 @@ if (job.technician_id === null) {
 }
 
 async function loadAdminRequests() {
-  // Load jobs that have been requested
-  const { data: jobs, error } = await sb
-    .from("jobs")
-    .select("id, title, scheduled_date, scheduled_time, requested_by, clients(name, address)")
-    .contains("requested_by", [])   // requested_by is an array
-    .neq("requested_by", null);     // ensure it exists
+  const { data: reqs, error } = await sb
+    .from("job_requests")
+    .select(`
+      id,
+      job_id,
+      tech_id,
+      status,
+      created_at,
+      jobs (
+        title,
+        scheduled_date,
+        scheduled_time,
+        clients ( name, address )
+      ),
+      technicians ( full_name )
+    `)
+    .eq("status", "requested");
 
   if (error) {
-    console.error("admin requests:", error);
+    console.error("loadAdminRequests error:", error);
     return;
   }
+
+  renderAdminRequests(reqs);
+}
+window.loadAdminRequests = loadAdminRequests;
+
 
   // Load technician names
   const { data: techs } = await sb
