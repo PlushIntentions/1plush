@@ -490,7 +490,7 @@ async function checkFileReminder(job) {
 
   await sb.from("jobs_file_reminders").insert({
     job_id: job.id,
-    tech_id: currentUser.id,
+    technician_id: currentUser.id,
     reminded_at: new Date().toISOString()
   });
 }
@@ -550,7 +550,7 @@ async function loadUnassignedJobs() {
       *,
       clients (name, address)
     `)
-    .is("tech_id", null)
+    .is("technician_id", null)
     .eq("status", "unassigned");
 
   const el = document.getElementById("unassigned-list");
@@ -597,7 +597,7 @@ async function requestWorkOrder(jobId) {
     .from("job_requests")
     .insert({
       job_id: jobId,
-      tech_id: techRecord.id
+      technician_id: techRecord.id
     });
 
   if (error) {
