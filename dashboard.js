@@ -795,4 +795,39 @@ if (job.technician_id === null) {
   showUnassignButton(job.id);
 }
 
+async function loadAdminRequests() {
+  const { data: jobs, error } = await sb
+    .from("jobs")
+    .select(`
+      id,
+      title,
+      scheduled_date,
+      scheduled_time,
+      requested_by,
+      request_status,
+      clients ( name, address )
+    `)
+    .eq("request_status", "requested");
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  // Fetch all tech profiles once
+  const { data: techs } = await sb
+    .from("profiles")
+    .select("id, full_name");
+
+  // Attach names to each job
+  const enriched = jobs.map(job => ({
+    ...job,
+    requested_names: job.requested_by.map(id => {
+      const tech = techs.find(t => t.id === id);
+      return tech ? tech.full_name : id;
+    })
+  }));
+
+  renderAdminRequests(enriched);
+}
 
