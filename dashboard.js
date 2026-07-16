@@ -844,40 +844,43 @@ window.loadAdminRequests = loadAdminRequests;
 }
 window.loadAdminRequests = loadAdminRequests;
 
-function renderAdminRequests(jobs) {
+function renderAdminRequests(reqs) {
   var el = document.getElementById('admin-requests-list');
   if (!el) return;
 
-  if (jobs.length === 0) {
+  if (reqs.length === 0) {
     el.innerHTML = '<p class="empty-msg">No pending workorder requests.</p>';
     return;
   }
 
-  el.innerHTML = jobs.map(job => {
-    return `
-      <div class="job-card glass">
-        <h3>${job.title}</h3>
-        <p><strong>Client:</strong> ${job.clients?.name || ''}</p>
-        <p><strong>Address:</strong> ${job.clients?.address || ''}</p>
-        <p><strong>Scheduled:</strong> ${job.scheduled_date} ${job.scheduled_time || ''}</p>
+  el.innerHTML = reqs.map(r => `
+    <div class="job-card glass">
+      <h3>${r.jobs.title}</h3>
 
-        <p><strong>Requested By:</strong></p>
-        <ul>${job.requested_names.map(n => `<li>${n}</li>`).join('')}</ul>
+      <p><strong>Client:</strong> ${r.jobs.clients?.name || ''}</p>
+      <p><strong>Address:</strong> ${r.jobs.clients?.address || ''}</p>
 
-        <label>Select Technician:</label>
-        <select id="approve-${job.id}">
-          ${job.requested_by.map((id, i) => `
-            <option value="${id}">${job.requested_names[i]}</option>
-          `).join("")}
-        </select>
+      <p><strong>Scheduled:</strong> ${r.jobs.scheduled_date || ''} ${r.jobs.scheduled_time || ''}</p>
 
-        <button class="btn-sm btn-pink" onclick="approveRequest('${job.id}')">Approve</button>
-        <button class="btn-sm btn-danger" onclick="rejectRequest('${job.id}')">Reject All</button>
-      </div>
-    `;
-  }).join('');
+      <p><strong>Requested By:</strong> ${r.technicians.full_name}</p>
+
+      <button class="btn-sm btn-pink"
+              onclick="approveRequest('${r.id}', '${r.job_id}', '${r.tech_id}')">
+        Approve
+      </button>
+
+      <button class="btn-sm btn-danger"
+              onclick="rejectRequest('${r.id}')">
+        Reject
+      </button>
+    </div>
+  `).join('');
+
+  if (window.feather) feather.replace();
 }
 window.renderAdminRequests = renderAdminRequests;
+
+
 function approveRequest(jobId) {
   var sel = document.getElementById('approve-' + jobId);
   var techId = sel ? sel.value : null;
