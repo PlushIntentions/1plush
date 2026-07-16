@@ -181,6 +181,18 @@ function renderAdminRequests(jobs) {
   });
 }
 
+function showPanel(panelId) {
+  document.querySelectorAll('.panel').forEach(panel => {
+    panel.classList.add('hidden');
+  });
+
+  const activePanel = document.getElementById(panelId);
+  if (activePanel) {
+    activePanel.classList.remove('hidden');
+  }
+}
+
+
 async function approveRequest(jobId) {
   const techId = document.getElementById(`approve-${jobId}`).value;
 
