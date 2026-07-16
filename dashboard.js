@@ -908,6 +908,7 @@ function approveRequest(requestId, jobId, techId) {
 window.approveRequest = approveRequest;
 
 
+
 function rejectRequest(requestId) {
   sb.from("job_requests")
     .update({ status: "rejected" })
