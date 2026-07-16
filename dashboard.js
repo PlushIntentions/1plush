@@ -795,3 +795,109 @@ if (job.technician_id === null) {
   showUnassignButton(job.id);
 }
 
+/* ---------------------------------------------------------
+   GET SINGLE JOB (Admin + Dispatcher)
+--------------------------------------------------------- */
+export async function getJob(jobId) {
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*')
+    .eq('id', jobId)
+    .single();
+
+  if (error) {
+    console.error('Get Job Error:', error);
+    return { error };
+  }
+
+  return { data };
+}
+async function loadAdminRequests() {
+  const { data: jobs, error } = await sb
+    .from("jobs")
+    .select(`
+      id,
+      title,
+      scheduled_date,
+      scheduled_time,
+      requested_by,
+      request_status,
+      clients ( name, address )
+    `)
+    .eq("request_status", "requested")
+    .order("scheduled_date", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    showToast("Failed to load workorder requests.");
+    return;
+  }
+
+  renderAdminRequests(jobs || []);
+}
+
+function renderAdminRequests(jobs) {
+  const el = document.getElementById("admin-requests-list");
+  el.innerHTML = "";
+
+  if (!jobs.length) {
+    el.innerHTML = "<p>No pending workorder requests.</p>";
+    return;
+  }
+
+  jobs.forEach(job => {
+    const card = document.createElement("div");
+    card.className = "job-card";
+
+    const techList = job.requested_by.map(id => `<li>${id}</li>`).join("");
+
+    card.innerHTML = `
+      <h3>${job.title}</h3>
+      <p><strong>Client:</strong> ${job.clients?.name}</p>
+      <p><strong>Address:</strong> ${job.clients?.address}</p>
+      <p><strong>Scheduled Date:</strong> ${job.scheduled_date}</p>
+      <p><strong>Scheduled Time:</strong> ${job.scheduled_time}</p>
+
+      <p><strong>Requested By:</strong></p>
+      <ul>${techList}</ul>
+
+      <label>Select Technician:</label>
+      <select id="approve-${job.id}">
+        ${job.requested_by.map(id => `<option value="${id}">${id}</option>`).join("")}
+      </select>
+
+      <button onclick="approveRequest('${job.id}')">Approve</button>
+      <button onclick="rejectRequest('${job.id}')">Reject All</button>
+    `;
+
+    el.appendChild(card);
+  });
+}
+
+function showPanel(panelId) {
+  document.querySelectorAll('.panel').forEach(panel => {
+    panel.classList.add('hidden');
+  });
+
+  const activePanel = document.getElementById(panelId);
+  if (activePanel) {
+    activePanel.classList.remove('hidden');
+  }
+}
+
+
+async function approveRequest(jobId) {
+  const techId = document.getElementById(`approve-${jobId}`).value;
+
+  // Assign job
+  const { error } = await sb
+    .from("jobs")
+    .update({
+      technician_id: techId,
+      request_status: "approved",
+      requested_by: [],
+      status: "assigned"
+    })
+    .eq("id", jobId);
+
+  if (error) throw error;
