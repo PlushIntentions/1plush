@@ -798,38 +798,32 @@ if (job.technician_id === null) {
 }
 
 async function loadAdminRequests() {
+  // Load jobs that have been requested
   const { data: jobs, error } = await sb
     .from("jobs")
-    .select(`
-      id,
-      title,
-      scheduled_date,
-      scheduled_time,
-      requested_by,
-      request_status,
-      clients ( name, address )
-    `)
-    .eq("request_status", "requested");
+    .select("id, title, scheduled_date, scheduled_time, requested_by, clients(name, address)")
+    .contains("requested_by", [])   // requested_by is an array
+    .neq("requested_by", null);     // ensure it exists
 
   if (error) {
-    console.error(error);
+    console.error("admin requests:", error);
     return;
   }
 
-  // Fetch all tech profiles once
+  // Load technician names
   const { data: techs } = await sb
-    .from("profiles")
+    .from("technicians")
     .select("id, full_name");
 
-  // Attach names to each job
+  const techMap = {};
+  techs.forEach(t => techMap[t.id] = t.full_name);
+
+  // Attach names
   const enriched = jobs.map(job => ({
     ...job,
-    requested_names: job.requested_by.map(id => {
-      const tech = techs.find(t => t.id === id);
-      return tech ? tech.full_name : id;
-    })
+    requested_names: (job.requested_by || []).map(id => techMap[id] || id)
   }));
 
   renderAdminRequests(enriched);
 }
-
+window.loadAdminRequests = loadAdminRequests;
