@@ -151,6 +151,31 @@ function loadJobs() {
   });
 }
 
+// Listen for realtime job request changes
+sb.channel('job_requests_changes')
+  .on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table: 'job_requests'
+    },
+    payload => {
+      console.log("Realtime job request event:", payload);
+
+      // Refresh admin requests panel if it's open
+      const activePanel = document.querySelector('.panel.active');
+      if (activePanel && activePanel.id === 'panel-admin-requests') {
+        loadAdminRequests();
+      }
+
+      // Always refresh badge counter
+      updateAdminRequestBadge();
+    }
+  )
+  .subscribe();
+
+
 function renderJobs() {
   var allGrid       = document.getElementById('jobs-grid');
   var pendingGrid   = document.getElementById('pending-grid');
