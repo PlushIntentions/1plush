@@ -88,7 +88,9 @@ window.closeSidebar = closeSidebar;
 //  PANEL NAVIGATION
 // ══════════════════════════════════════════════════════════════
 var PANELS = ['map','jobs','pending','techs','clients','completed',
-              'approvals','workorders','infractions','earnings','usermgmt','newjob'];
+              'approvals','workorders','infractions','earnings','usermgmt','newjob',
+              'admin-requests'];
+
 
 function showPanel(name) {
   PANELS.forEach(function (p) {
