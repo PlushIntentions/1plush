@@ -885,3 +885,4 @@ async function approveRequest(jobId) {
     .eq("id", jobId);
 
   if (error) throw error;
+    });
