@@ -885,6 +885,7 @@ function renderAdminRequests(reqs) {
 window.renderAdminRequests = renderAdminRequests;
 
 
+
 function approveRequest(requestId, jobId, techId) {
   // 1. Assign technician to job
   sb.from("jobs")
