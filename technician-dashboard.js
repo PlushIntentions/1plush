@@ -67,33 +67,40 @@ window.addEventListener("load", async () => {
 
 /* BOOT APP */
 async function bootApp() {
-  document.getElementById("loader").classList.remove("hidden");
+  showLoader();
 
   const { data, error } = await sb
     .from("technicians")
     .select("*")
     .eq("user_id", currentUser.id)
-    .single();
+    .maybeSingle(); // ← key change
 
-  if (error || !data) {
+  if (error) {
+    showToast("Failed to load technician record.");
+    hideLoader();
+    return;
+  }
+
+  if (!data) {
     showToast("Technician record not found.");
-    document.getElementById("loader").classList.add("hidden");
+    hideLoader();
+    showMainPanel(); // still let the UI render
     return;
   }
 
   techRecord = data;
 
-  document.getElementById("main-panel").classList.remove("hidden");
+  showMainPanel();
 
   if (techRecord.status === "pending_documents") {
     showOnboardingPanel();
-    document.getElementById("loader").classList.add("hidden");
+    hideLoader();
     return;
   }
 
   if (techRecord.status === "pending_approval") {
     showApprovalPanel();
-    document.getElementById("loader").classList.add("hidden");
+    hideLoader();
     return;
   }
 
@@ -103,8 +110,9 @@ async function bootApp() {
   renderProfile();
   showPanel("map-panel");
 
-  document.getElementById("loader").classList.add("hidden");
+  hideLoader();
 }
+
 
 /* ONBOARDING PANEL */
 function showOnboardingPanel() {
