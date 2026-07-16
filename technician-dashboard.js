@@ -53,16 +53,17 @@ function hideLoader() {
 window.addEventListener("load", async () => {
   initSupabase();
 
-  const { data: session } = await sb.auth.getSession();
+  const session = await waitForSession();
 
-  if (!session || !session.session) {
+  if (!session) {
     window.location.href = "/login.html";
     return;
   }
 
-  currentUser = session.session.user;
+  currentUser = session.user;
   await bootApp();
 });
+
 
 /* BOOT APP */
 async function bootApp() {
