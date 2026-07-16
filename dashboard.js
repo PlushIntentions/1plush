@@ -87,9 +87,12 @@ window.closeSidebar = closeSidebar;
 // ══════════════════════════════════════════════════════════════
 //  PANEL NAVIGATION
 // ══════════════════════════════════════════════════════════════
-var PANELS = ['map','jobs','pending','techs','clients','completed',
-              'approvals','workorders','infractions','earnings','usermgmt','newjob',
-              'admin-requests'];
+var PANELS = [
+  'map','jobs','pending','techs','clients','completed',
+  'approvals','workorders','infractions','earnings',
+  'usermgmt','newjob','admin-requests'
+];
+
 
 
 function showPanel(name) {
