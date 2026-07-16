@@ -881,39 +881,34 @@ function renderAdminRequests(reqs) {
 window.renderAdminRequests = renderAdminRequests;
 
 
-function approveRequest(jobId) {
-  var sel = document.getElementById('approve-' + jobId);
-  var techId = sel ? sel.value : null;
-
-  sb.from('jobs')
+function approveRequest(requestId, jobId, techId) {
+  // 1. Assign technician to job
+  sb.from("jobs")
     .update({
       technician_id: techId,
-      status: 'assigned',
-      requested_by: []
+      status: "assigned"
     })
-    .eq('id', jobId)
-    .then(function(res) {
-      if (res.error) {
-        showToast('Error approving request', 'error');
-        return;
-      }
-      showToast('Request approved!', 'success');
+    .eq("id", jobId);
+
+  // 2. Mark request approved
+  sb.from("job_requests")
+    .update({ status: "approved" })
+    .eq("id", requestId)
+    .then(() => {
+      showToast("Request approved!", "success");
       loadAdminRequests();
       loadJobs();
     });
 }
 window.approveRequest = approveRequest;
 
-function rejectRequest(jobId) {
-  sb.from('jobs')
-    .update({ requested_by: [] })
-    .eq('id', jobId)
-    .then(function(res) {
-      if (res.error) {
-        showToast('Error rejecting request', 'error');
-        return;
-      }
-      showToast('Request rejected.', 'success');
+
+function rejectRequest(requestId) {
+  sb.from("job_requests")
+    .update({ status: "rejected" })
+    .eq("id", requestId)
+    .then(() => {
+      showToast("Request rejected.", "success");
       loadAdminRequests();
     });
 }
