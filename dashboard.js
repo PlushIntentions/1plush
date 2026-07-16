@@ -944,3 +944,29 @@ function rejectRequest(requestId) {
     });
 }
 window.rejectRequest = rejectRequest;
+
+async function updateAdminRequestBadge() {
+  const { data, error } = await sb
+    .from("job_requests")
+    .select("id")
+    .eq("status", "requested");
+
+  if (error) {
+    console.error("badge error:", error);
+    return;
+  }
+
+  const badge = document.getElementById('badge-admin-requests');
+  if (badge) {
+    badge.textContent = data.length > 0 ? data.length : '';
+  }
+}
+window.updateAdminRequestBadge = updateAdminRequestBadge;
+
+
+sb.from("job_requests").insert({
+  job_id: jobId,
+  tech_id: techId,
+  status: "requested"
+});
+
