@@ -103,12 +103,12 @@ async function bootApp() {
     hideLoader();
     return;
   }
-
+  showPanel("map-panel");
   await initMap();
   await loadJobs();
   await loadUnassignedJobs();
   renderProfile();
-  showPanel("map-panel");
+ 
 
   hideLoader();
 }
