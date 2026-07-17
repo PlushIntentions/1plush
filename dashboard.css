@@ -662,4 +662,17 @@ body::before {
   opacity: 1;
   pointer-events: auto;
 }
+.job-card-large {
+  padding: 20px;
+  min-height: 240px;
+}
+
+.job-desc-scroll {
+  max-height: 120px;
+  overflow-y: auto;
+  background: rgba(255,255,255,0.12);
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
 
