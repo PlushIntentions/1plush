@@ -182,17 +182,23 @@
   </div>
 
   <!-- ── PANEL: APPROVALS ───────────── -->
-  <div class="panel" id="panel-approvals">
-    <div class="panel-header"><h2>Pending Approvals</h2></div>
-<h3 class="section-heading">Job Requests</h3>
-<div class="card-grid" id="approvals-jobrequests-grid">
-  <div class="empty-state">
-    <i data-feather="file-text"></i>
-    <p>No job requests</p>
+<div class="panel" id="panel-approvals">
+  <div class="panel-header"><h2>Approvals</h2></div>
+
+  <!-- Pending Approvals -->
+  <h3 class="section-heading">Pending Approvals</h3>
+  <div class="card-grid approvals-scroll" id="approvals-grid">
+    <div class="empty-state"><i data-feather="user-check"></i><p>No pending approvals</p></div>
+  </div>
+
+  <!-- Job Requests -->
+  <h3 class="section-heading">Job Requests</h3>
+  <div class="card-grid approvals-scroll" id="jobrequests-grid">
+    <div class="empty-state"><i data-feather="file-text"></i><p>No job requests</p></div>
   </div>
 </div>
 
-  
+
   <!-- ── PANEL: WORK ORDERS ─────────── -->
   <div class="panel" id="panel-workorders">
     <div class="panel-header">
