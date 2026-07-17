@@ -67,10 +67,11 @@
   <div class="nav-link" id="nav-completed" onclick="showPanel('completed')">
     <i data-feather="check-circle"></i> Completed
   </div>
-  <div class="nav-link" id="nav-approvals" onclick="showPanel('approvals')">
-    <i data-feather="user-check"></i> Approvals
-    <span class="nav-badge" id="badge-approvals"></span>
-  </div>
+ <div class="nav-link" id="nav-approvals"
+     onclick="showPanel('approvals'); loadApprovals(); loadAdminJobRequests();">
+  <i data-feather="user-check"></i> Approvals
+  <span class="nav-badge" id="badge-approvals"></span>
+</div>
   <div class="nav-link" id="nav-workorders" onclick="showPanel('workorders')">
     <i data-feather="file-text"></i> Work Orders
   </div>
