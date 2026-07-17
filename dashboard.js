@@ -853,3 +853,29 @@ function renderAdminJobRequests(reqs) {
 
   feather.replace();
 }
+
+
+async function closeJob(jobId) {
+  try {
+    const timestamp = new Date().toISOString();
+
+    const { data, error } = await sb
+      .from("jobs")
+      .update({
+        status: "closed",
+        closed_at: timestamp
+      })
+      .eq("id", jobId);
+
+    if (error) throw error;
+
+    showToast("Job closed successfully.");
+    loadAllJobs(); 
+    showPanel("jobs-panel");
+
+  } catch (err) {
+    console.error(err);
+    showToast("Failed to close job.");
+  }
+}
+
