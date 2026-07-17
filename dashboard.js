@@ -1,459 +1,921 @@
-/* ═══════════════════════════════════════════════════════════════
-   PLUSH INTENTIONS — Admin Dashboard JS
-   ---------------------------------------------------------------
-   ⚠️  Replace SUPABASE_URL and SUPABASE_ANON below with your
-       values from: supabase.com → Project Settings → API
-═══════════════════════════════════════════════════════════════ */
+/* ============================================================
+   dashboard.js — Plush Intentions Admin Dashboard
+   RULE: loader MUST be hidden SYNCHRONOUSLY before any await/async
+   ============================================================ */
 
-const SUPABASE_URL  = 'https://iazvpykfdckpffhakncd.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhenZweWtmZGNrcGZmaGFrbmNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNzA0MTEsImV4cCI6MjA5NTg0NjQxMX0.OOXhS1zLez30isOszxP0XOIyndpJq2jwqE90eY649bA'; // ← paste your anon/public key here
+// ── Supabase init ──────────────────────────────────────────────
+const SUPA_URL = 'https://iazvpykfdckpffhakncd.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhenZweWtmZGNrcGZmaGFrbmNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNzA0MTEsImV4cCI6MjA5NTg0NjQxMX0.OOXhS1zLez30isOszxP0XOIyndpJq2jwqE90eY649bA'; // ← paste your anon key here
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
-const MAPBOX_TOKEN  = 'pk.eyJ1IjoicGx1c2gtaW50ZW50aW9ucyIsImEiOiJjbXA5ejJlcGwwMzQxMnJwdXBpZTg5NmYxIn0.i0wFsO5_bt70k942AsMNcg';
+// ── Mapbox token ───────────────────────────────────────────────
+const MAPBOX_TOKEN = 'pk.eyJ1IjoicGx1c2gtaW50ZW50aW9ucyIsImEiOiJjbXA5ejJlcGwwMzQxMnJwdXBpZTg5NmYxIn0.i0wFsO5_bt70k942AsMNcg';
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+// ── Global state ───────────────────────────────────────────────
+let allJobs         = [];
+let allTechs        = [];
+let allClients      = [];
+let allInfractions  = [];
+let mapInstance     = null;
+let techMarkers     = [];
+let currentAssignJobId = null;
 
-/* ── State ─────────────────────────────────────────────────── */
-let map            = null;
-let mapMarkers     = [];
-let allJobs        = [];
-let allTechs       = [];
-let allClients     = [];
-let allAdmins      = [];
-let allInfractions = [];
-let activeJobId    = null;
-let currentPanel   = 'map';
+// ══════════════════════════════════════════════════════════════
+//  BOOT — DOMContentLoaded
+// ══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function () {
 
-/* ══════════════════════════════════════════════════════════════
-   BOOT
-══════════════════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', async () => {
-  const loaderTimer = setTimeout(hideLoader, 2000);
-  try {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) { window.location.href = 'index.html'; return; }
-    const email = session.user?.email || '–';
-    setEl('signed-in-email', email);
-    await loadAllData();
-  } catch (err) {
-    console.error('Boot error:', err);
-    showToast('Error loading dashboard', 'error');
-  } finally {
-    clearTimeout(loaderTimer);
-    hideLoader();
-  }
+  // ✅ STEP 1 — Hide loader RIGHT NOW (zero async, zero await)
+  var loader = document.getElementById('loader');
+  if (loader) loader.style.display = 'none';
+
+  // ✅ STEP 2 — Feather icons
   if (window.feather) feather.replace();
-  initMap();
+
+  // ✅ STEP 3 — Show default panel
+  showPanel('map');
+
+  // ✅ STEP 4 — Session check in background (.then only, never await)
+  sb.auth.getSession().then(function (result) {
+    var session = result && result.data && result.data.session;
+    if (!session) {
+      window.location.href = 'index.html';
+      return;
+    }
+    var emailEl = document.getElementById('signed-in-email');
+    if (emailEl) emailEl.textContent = session.user.email;
+
+    loadAllData();
+    initMap();
+  }).catch(function (e) {
+    console.warn('Session check failed:', e);
+  });
 });
 
-/* ══════════════════════════════════════════════════════════════
-   LOADER
-══════════════════════════════════════════════════════════════ */
-function hideLoader() {
-  const l = document.getElementById('loader');
-  if (l) { l.style.opacity = '0'; setTimeout(() => l.remove(), 400); }
+// ══════════════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════════════
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.className = 'show' + (type === 'error' ? ' error' : type === 'success' ? ' success' : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function () { t.className = ''; }, 3500);
 }
 
-/* ══════════════════════════════════════════════════════════════
-   LOAD DATA
-══════════════════════════════════════════════════════════════ */
-async function loadAllData() {
-  const results = await Promise.allSettled([
-    loadJobs(), loadTechs(), loadClients(), loadAdmins(), loadInfractions()
-  ]);
-  results.forEach((r, i) => { if (r.status === 'rejected') console.warn(`Load[${i}] failed:`, r.reason); });
-  updateStats();
-  updateBadges();
-  refreshCurrentPanel();
-  if (window.feather) feather.replace();
+// ══════════════════════════════════════════════════════════════
+//  SIDEBAR
+// ══════════════════════════════════════════════════════════════
+function openSidebar() {
+  var sb2 = document.getElementById('sidebar');
+  var bd  = document.getElementById('sidebar-backdrop');
+  if (sb2) sb2.classList.add('open');
+  if (bd)  bd.classList.add('show');
 }
+window.openSidebar = openSidebar;
 
-async function loadJobs() {
-  const { data, error } = await sb.from('jobs').select('*').order('created_at', { ascending: false });
-  if (error) throw error;
-  allJobs = data || [];
+function closeSidebar() {
+  var sb2 = document.getElementById('sidebar');
+  var bd  = document.getElementById('sidebar-backdrop');
+  if (sb2) sb2.classList.remove('open');
+  if (bd)  bd.classList.remove('show');
 }
-async function loadTechs() {
-  const { data, error } = await sb.from('technicians').select('*').order('created_at', { ascending: false });
-  if (error) throw error;
-  allTechs = data || [];
-}
-async function loadClients() {
-  const { data, error } = await sb.from('clients').select('*').order('name', { ascending: true });
-  if (error) throw error;
-  allClients = data || [];
-}
-async function loadAdmins() {
-  const { data, error } = await sb.from('admins').select('*');
-  if (error) throw error;
-  allAdmins = data || [];
-}
-async function loadInfractions() {
-  const { data, error } = await sb.from('infractions').select('*').order('created_at', { ascending: false });
-  if (error) throw error;
-  allInfractions = data || [];
-}
+window.closeSidebar = closeSidebar;
 
-/* ── Stats & Badges ─────────────────────────────────────────── */
-function updateStats() {
-  const total   = allJobs.length;
-  const active  = allJobs.filter(j => j.status === 'active').length;
-  const pending = allJobs.filter(j => j.status === 'pending').length;
-  const techs   = allTechs.length;
-  setEl('stat-jobs', total);    setEl('m-stat-jobs', total);
-  setEl('stat-active', active); setEl('m-stat-active', active);
-  setEl('stat-pending', pending); setEl('m-stat-pending', pending);
-  setEl('stat-techs', techs);  setEl('m-stat-techs', techs);
-}
-function updateBadges() {
-  setBadge('badge-pending',     allJobs.filter(j => j.status === 'pending').length);
-  setBadge('badge-approvals',   allTechs.filter(t => t.status === 'pending_review').length);
-  setBadge('badge-infractions', allInfractions.filter(i => i.status !== 'resolved').length);
-}
-function setBadge(id, count) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  if (count > 0) { el.textContent = count; el.style.display = 'inline-flex'; }
-  else el.style.display = 'none';
-}
 
-/* ══════════════════════════════════════════════════════════════
-   PANEL NAVIGATION
-══════════════════════════════════════════════════════════════ */
-const panelTitles = {
-  map:'Live Map', jobs:'All Jobs', pending:'Pending Jobs', techs:'Technicians',
-  clients:'Clients', completed:'Completed Jobs', approvals:'Pending Approvals',
-  workorders:'Work Orders', infractions:'Infractions',
-  earnings:'Earnings & Hours', usermgmt:'User Management', newjob:'New Work Order'
-};
+// ══════════════════════════════════════════════════════════════
+//  PANEL NAVIGATION
+// ══════════════════════════════════════════════════════════════
+var PANELS = [
+  'map','jobs','pending','techs','clients','completed',
+  'approvals','workorders','infractions','earnings',
+  'usermgmt','newjob','admin-requests'
+];
+
+
 
 function showPanel(name) {
-  currentPanel = name;
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  const panel = document.getElementById('panel-' + name);
-  if (panel) panel.classList.add('active');
-  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-  const navEl = document.getElementById('nav-' + name);
-  if (navEl) navEl.classList.add('active');
-  document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
-  const bNav = document.getElementById('bnav-' + name);
-  if (bNav) bNav.classList.add('active');
-  setEl('topbar-title', panelTitles[name] || name);
+  PANELS.forEach(function (p) {
+    var panel = document.getElementById('panel-' + p);
+    var nav   = document.getElementById('nav-' + p);
+
+    if (panel) {
+      panel.classList.toggle('active', p === name);
+    }
+
+    if (nav) {
+      nav.classList.toggle('active', p === name);
+    }
+  });
+
   closeSidebar();
-  renderPanel(name);
-  if (window.feather) feather.replace();
-}
 
-function refreshCurrentPanel() { renderPanel(currentPanel); }
-
-function renderPanel(name) {
-  switch (name) {
-    case 'map':        renderMap();              break;
-    case 'jobs':       renderJobs();             break;
-    case 'pending':    renderPending();          break;
-    case 'techs':      renderTechs();            break;
-    case 'clients':    renderClients();          break;
-    case 'completed':  renderCompleted();        break;
-    case 'approvals':  renderApprovals();        break;
-    case 'workorders': renderWorkOrders('all');  break;
-    case 'infractions':renderInfractions();      break;
-    case 'earnings':   renderEarnings();         break;
-    case 'usermgmt':   renderUserMgmt();         break;
-    case 'newjob':     populateNewJobForm();     break;
+  if (name === 'map' && mapInstance) {
+    setTimeout(function () { mapInstance.resize(); }, 200);
   }
+
+  if (name === 'earnings') loadEarnings();
 }
 
-/* ══════════════════════════════════════════════════════════════
-   SIDEBAR
-══════════════════════════════════════════════════════════════ */
-function openSidebar() {
-  document.getElementById('sidebar').classList.add('open');
-  document.getElementById('sidebar-backdrop').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('sidebar-backdrop').classList.remove('open');
-  document.body.style.overflow = '';
-}
+window.showPanel = showPanel;
 
-/* ══════════════════════════════════════════════════════════════
-   MAP
-══════════════════════════════════════════════════════════════ */
-function initMap() {
-  try {
-    mapboxgl.accessToken = MAPBOX_TOKEN;
-    map = new mapboxgl.Map({
-      container: 'map-container',
-      style: 'mapbox://styles/mapbox/dark-v11',
-      center: [-82.5, 41.1], zoom: 7
-    });
-    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-    map.on('load', () => plotMapMarkers());
-  } catch (e) { console.error('Map init failed:', e); }
-}
-function renderMap() {
-  if (map) { setTimeout(() => { map.resize(); plotMapMarkers(); }, 150); }
-}
-function plotMapMarkers() {
-  if (!map) return;
-  mapMarkers.forEach(m => m.remove());
-  mapMarkers = [];
-  allTechs.forEach(t => {
-    if (!t.lat || !t.lng) return;
-    const el = document.createElement('div');
-    el.className = 'map-marker tech-marker';
-    const m = new mapboxgl.Marker(el).setLngLat([t.lng, t.lat])
-      .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(
-        `<strong>${techName(t)}</strong><br/>Last seen: ${formatTime(t.last_seen)}`
-      )).addTo(map);
-    mapMarkers.push(m);
+// ══════════════════════════════════════════════════════════════
+//  SIGN OUT
+// ══════════════════════════════════════════════════════════════
+function signOut() {
+  sb.auth.signOut().then(function () {
+    window.location.href = 'index.html';
   });
-  allJobs.forEach(j => {
-    const client = allClients.find(c => c.id === j.client_id);
-    if (!client?.lat || !client?.lng) return;
-    const el = document.createElement('div');
-    el.className = 'map-marker job-marker';
-    const m = new mapboxgl.Marker(el).setLngLat([client.lng, client.lat])
-      .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(
-        `<strong>${j.title}</strong><br/>Status: ${j.status}<br/>Client: ${client.name}`
-      )).addTo(map);
-    mapMarkers.push(m);
+}
+window.signOut = signOut;
+
+// ══════════════════════════════════════════════════════════════
+//  LOAD ALL DATA
+// ══════════════════════════════════════════════════════════════
+function loadAllData() {
+  loadJobs();
+  loadTechs();
+  loadClients();
+  loadInfractions();
+}
+window.loadAllData = loadAllData;
+
+// ── Jobs ───────────────────────────────────────────────────────
+function loadJobs() {
+  sb.from('jobs').select('*, clients(name), technicians(full_name)').then(function (res) {
+    if (res.error) { console.error('jobs:', res.error); return; }
+    allJobs = res.data || [];
+    renderJobs();
+    updateStats();
   });
 }
 
-/* ══════════════════════════════════════════════════════════════
-   RENDER FUNCTIONS
-══════════════════════════════════════════════════════════════ */
 function renderJobs() {
-  const grid = document.getElementById('jobs-grid');
-  if (!grid) return;
-  grid.innerHTML = allJobs.length ? allJobs.map(jobCard).join('') : emptyState('briefcase','No jobs found');
-}
-function renderPending() {
-  const grid = document.getElementById('pending-grid');
-  if (!grid) return;
-  const jobs = allJobs.filter(j => j.status === 'pending');
-  grid.innerHTML = jobs.length ? jobs.map(j => jobCard(j, true)).join('') : emptyState('clock','No pending jobs');
-}
-function renderCompleted() {
-  const grid = document.getElementById('completed-grid');
-  if (!grid) return;
-  const jobs = allJobs.filter(j => j.status === 'completed');
-  grid.innerHTML = jobs.length ? jobs.map(jobCard).join('') : emptyState('check-circle','No completed jobs');
-}
-function renderWorkOrders(filter) {
-  const grid = document.getElementById('workorders-grid');
-  if (!grid) return;
-  const jobs = filter === 'all' ? allJobs : allJobs.filter(j => j.status === filter);
-  grid.innerHTML = jobs.length ? jobs.map(j => jobCard(j, j.status === 'pending')).join('') : emptyState('file-text','No work orders');
-}
-function filterWorkOrders(filter, btn) {
-  document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  renderWorkOrders(filter);
+  var allGrid       = document.getElementById('jobs-grid');
+  var pendingGrid   = document.getElementById('pending-grid');
+  var completedGrid = document.getElementById('completed-grid');
+  var woGrid        = document.getElementById('workorders-grid');
+  var badge         = document.getElementById('badge-pending');
+
+  var pending   = allJobs.filter(function (j) { return j.status === 'pending'; });
+  var completed = allJobs.filter(function (j) { return j.status === 'completed'; });
+
+  if (badge) badge.textContent = pending.length > 0 ? pending.length : '';
+
+  if (allGrid)       allGrid.innerHTML       = allJobs.map(jobCard).join('');
+  if (pendingGrid)   pendingGrid.innerHTML   = pending.map(jobCard).join('');
+  if (completedGrid) completedGrid.innerHTML = completed.map(jobCard).join('');
+  if (woGrid)        woGrid.innerHTML        = allJobs.map(jobCard).join('');
+
   if (window.feather) feather.replace();
 }
 
-function jobCard(j, showAssign = false) {
-  const tech   = allTechs.find(t => t.user_id === j.technician_id);
-  const client = allClients.find(c => c.id === j.client_id);
-  const rate   = j.job_rate ? `$${parseFloat(j.job_rate).toFixed(2)}` : '–';
-  const pclass = j.priority || 'normal';
-  return `
-  <div class="job-card glass">
-    <div class="job-card-header">
-      <span class="job-title">${esc(j.title)}</span>
-      <span class="status-pill ${j.status || 'pending'}">${j.status || 'pending'}</span>
-    </div>
-    <div class="job-meta">
-      <span><i data-feather="user"></i> ${client ? esc(client.name) : 'No client'}</span>
-      <span><i data-feather="tool"></i> ${tech ? techName(tech) : 'Unassigned'}</span>
-      <span><i data-feather="dollar-sign"></i> ${rate}</span>
-      ${j.scheduled_date ? `<span><i data-feather="calendar"></i> ${j.scheduled_date}</span>` : ''}
-    </div>
-    ${j.description ? `<p class="job-desc">${esc(j.description)}</p>` : ''}
-    <div class="job-actions">
-      ${showAssign ? `<button class="btn-sm btn-primary" onclick="openAssignModal('${j.id}','${esc(j.title)}')"><i data-feather="user-plus"></i> Assign</button>` : ''}
-      <span class="priority-pill ${pclass}">${pclass}</span>
-    </div>
-  </div>`;
+function jobCard(j) {
+  var clientName = (j.clients && j.clients.name) ? j.clients.name : 'No Client';
+  var techName   = (j.technicians && j.technicians.full_name) ? j.technicians.full_name : 'Unassigned';
+  var statusCls  = 'status-' + (j.status || 'pending');
+  var priCls     = 'pri-' + (j.priority || 'low');
+  return '<div class="job-card glass">' +
+    '<div class="job-card-header">' +
+      '<span class="job-title">' + esc(j.title || 'Untitled') + '</span>' +
+      '<span class="badge ' + statusCls + '">' + esc(j.status || 'pending') + '</span>' +
+    '</div>' +
+    '<div class="job-meta">' +
+      '<span><i data-feather="user"></i> ' + esc(clientName) + '</span>' +
+      '<span><i data-feather="tool"></i> ' + esc(techName) + '</span>' +
+      '<span class="badge ' + priCls + '">' + esc(j.priority || 'low') + '</span>' +
+    '</div>' +
+    (j.scheduled_date ? '<div class="job-date"><i data-feather="calendar"></i> ' +
+      esc(j.scheduled_date) + (j.scheduled_time ? ' @ ' + esc(j.scheduled_time) : '') + '</div>' : '') +
+    '<div class="job-actions">' +
+      '<button class="btn-sm btn-pink" onclick="openAssignModal(\'' + j.id + '\',\'' + esc(j.title) + '\')">Assign</button>' +
+    '</div>' +
+  '</div>';
+}
+
+// ── Technicians ────────────────────────────────────────────────
+function loadTechs() {
+  sb.from('technicians').select('*').then(function (res) {
+    if (res.error) { console.error('techs:', res.error); return; }
+    allTechs = res.data || [];
+    renderTechs();
+    renderApprovals();
+    renderUserMgmt();
+    updateStats();
+    placeTechMarkers();
+    populateTechSelects();
+  });
 }
 
 function renderTechs() {
-  const grid = document.getElementById('techs-grid');
+  var grid = document.getElementById('techs-grid');
   if (!grid) return;
-  grid.innerHTML = allTechs.length ? allTechs.map(techCard).join('') : emptyState('users','No technicians found');
+  var active = allTechs.filter(function (t) { return t.status === 'approved' || t.status === 'active'; });
+  grid.innerHTML = active.length === 0
+    ? '<p class="empty-msg">No approved technicians yet.</p>'
+    : active.map(techCard).join('');
+  if (window.feather) feather.replace();
 }
+
 function techCard(t) {
-  const online = t.last_seen && (Date.now() - new Date(t.last_seen).getTime()) < 5 * 60 * 1000;
-  const skills = Array.isArray(t.skills) ? t.skills : (t.skills ? [t.skills] : []);
-  return `
-  <div class="tech-card glass">
-    <div class="tech-card-header">
-      <div class="tech-avatar">${techInitials(t)}</div>
-      <div style="flex:1">
-        <div class="tech-name">${techName(t)}</div>
-        <div class="tech-email">${esc(t.email || '–')}</div>
-      </div>
-      <span class="gps-dot ${online ? 'online' : 'offline'}"></span>
-    </div>
-    <div class="tech-meta">
-      <span><i data-feather="phone"></i> ${esc(t.phone || '–')}</span>
-      <span><i data-feather="map-pin"></i> ${esc(t.city || '–')}</span>
-      <span><i data-feather="activity"></i> ${esc(t.status || '–')}</span>
-    </div>
-    ${skills.length ? `<div class="tech-skills">${skills.map(s => `<span class="skill-tag">${esc(String(s).trim())}</span>`).join('')}</div>` : ''}
-    <div class="tech-actions">
-      <button class="btn-sm btn-ghost" onclick="openResetPwModal('${t.user_id}','${esc(techName(t))}')"><i data-feather="lock"></i> Reset PW</button>
-    </div>
-  </div>`;
+  return '<div class="tech-card glass">' +
+    '<div class="tech-name">' + esc(t.full_name || 'Unknown') + '</div>' +
+    '<div class="tech-meta">' +
+      '<span><i data-feather="mail"></i> ' + esc(t.email || '') + '</span>' +
+      '<span><i data-feather="phone"></i> ' + esc(t.phone || '') + '</span>' +
+      '<span><i data-feather="map-pin"></i> ' + esc(t.city || '') + '</span>' +
+    '</div>' +
+    '<div class="tech-skills">' + esc(t.skills || '') + '</div>' +
+    '<div class="tech-actions">' +
+      '<button class="btn-sm btn-outline" onclick="openResetPwModal(\'' + t.id + '\',\'' + esc(t.full_name) + '\')">Reset PW</button>' +
+    '</div>' +
+  '</div>';
+}
+
+// ── Approvals ──────────────────────────────────────────────────
+function renderApprovals() {
+  var grid  = document.getElementById('approvals-grid');
+  var badge = document.getElementById('badge-approvals');
+  if (!grid) return;
+  var pending = allTechs.filter(function (t) {
+    return t.status === 'pending_approval' || t.status === 'pending';
+  });
+  if (badge) badge.textContent = pending.length > 0 ? pending.length : '';
+  grid.innerHTML = pending.length === 0
+    ? '<p class="empty-msg">No pending approvals.</p>'
+    : pending.map(function (t) {
+        return '<div class="tech-card glass">' +
+          '<div class="tech-name">' + esc(t.full_name || 'Unknown') + '</div>' +
+          '<div class="tech-meta">' +
+            '<span>' + esc(t.email || '') + '</span>' +
+            '<span>' + esc(t.city || '') + '</span>' +
+          '</div>' +
+          '<div class="tech-actions">' +
+            '<button class="btn-sm btn-pink" onclick="approveTech(\'' + t.id + '\')">Approve</button>' +
+            '<button class="btn-sm btn-danger" onclick="rejectTech(\'' + t.id + '\')">Reject</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+  if (window.feather) feather.replace();
+}
+
+function approveTech(id) {
+  sb.from('technicians').update({ status: 'approved' }).eq('id', id).then(function (res) {
+    if (res.error) { showToast('Error: ' + res.error.message, 'error'); return; }
+    showToast('Technician approved!', 'success');
+    loadTechs();
+  });
+}
+window.approveTech = approveTech;
+
+function rejectTech(id) {
+  if (!confirm('Reject and delete this technician?')) return;
+  sb.from('technicians').delete().eq('id', id).then(function (res) {
+    if (res.error) { showToast('Error: ' + res.error.message, 'error'); return; }
+    showToast('Technician rejected.', 'success');
+    loadTechs();
+  });
+}
+window.rejectTech = rejectTech;
+
+// ── User Management ────────────────────────────────────────────
+function renderUserMgmt() {
+  var grid = document.getElementById('usermgmt-techs-grid');
+  if (!grid) return;
+  grid.innerHTML = allTechs.length === 0
+    ? '<p class="empty-msg">No users found.</p>'
+    : allTechs.map(function (t) {
+        return '<div class="tech-card glass">' +
+          '<div class="tech-name">' + esc(t.full_name || 'Unknown') + '</div>' +
+          '<div class="tech-meta">' +
+            '<span>' + esc(t.email || '') + '</span>' +
+            '<span class="badge status-' + esc(t.status || '') + '">' + esc(t.status || '') + '</span>' +
+          '</div>' +
+          '<div class="tech-actions">' +
+            '<button class="btn-sm btn-outline" onclick="openResetPwModal(\'' + t.id + '\',\'' + esc(t.full_name) + '\')">Reset PW</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+  if (window.feather) feather.replace();
+}
+
+// ── Clients ────────────────────────────────────────────────────
+function loadClients() {
+  sb.from('clients').select('*').then(function (res) {
+    if (res.error) { console.error('clients:', res.error); return; }
+    allClients = res.data || [];
+    renderClients();
+    populateClientSelect();
+  });
 }
 
 function renderClients() {
-  const tbody = document.getElementById('clients-tbody');
+  var tbody = document.getElementById('clients-tbody');
   if (!tbody) return;
-  if (!allClients.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-row">No clients found</td></tr>'; return; }
-  tbody.innerHTML = allClients.map(c => `
-    <tr>
-      <td>${esc(c.name)}</td>
-      <td>${esc(c.email || '–')}</td>
-      <td>${esc(c.phone || '–')}</td>
-      <td>${esc(c.city || '–')}</td>
-      <td><button class="btn-sm btn-ghost" onclick="deleteClient('${c.id}')"><i data-feather="trash-2"></i></button></td>
-    </tr>`).join('');
+  if (allClients.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;opacity:.6">No clients yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allClients.map(function (c) {
+    return '<tr>' +
+      '<td>' + esc(c.name || '') + '</td>' +
+      '<td>' + esc(c.email || '') + '</td>' +
+      '<td>' + esc(c.phone || '') + '</td>' +
+      '<td>' + esc(c.city || '') + '</td>' +
+      '<td><button class="btn-sm btn-danger" onclick="deleteClient(\'' + c.id + '\')">Delete</button></td>' +
+    '</tr>';
+  }).join('');
 }
 
-function renderApprovals() {
-  const grid = document.getElementById('approvals-grid');
-  if (!grid) return;
-  const pending = allTechs.filter(t => t.status === 'pending_review');
-  if (!pending.length) { grid.innerHTML = emptyState('user-check','No pending approvals'); return; }
-  grid.innerHTML = pending.map(t => `
-    <div class="tech-card glass">
-      <div class="tech-card-header">
-        <div class="tech-avatar">${techInitials(t)}</div>
-        <div style="flex:1"><div class="tech-name">${techName(t)}</div><div class="tech-email">${esc(t.email || '–')}</div></div>
-        <span class="status-pill yellow">Pending</span>
-      </div>
-      <div class="tech-actions" style="margin-top:12px">
-        <button class="btn-success" onclick="approveTech('${t.user_id}')"><i data-feather="check"></i> Approve</button>
-        <button class="btn-danger"  onclick="rejectTech('${t.user_id}')"><i data-feather="x"></i> Reject</button>
-      </div>
-    </div>`).join('');
+function deleteClient(id) {
+  if (!confirm('Delete this client?')) return;
+  sb.from('clients').delete().eq('id', id).then(function (res) {
+    if (res.error) { showToast('Error: ' + res.error.message, 'error'); return; }
+    showToast('Client deleted.', 'success');
+    loadClients();
+  });
+}
+window.deleteClient = deleteClient;
+
+// ── Infractions ────────────────────────────────────────────────
+function loadInfractions() {
+  sb.from('infractions').select('*, technicians(full_name)').then(function (res) {
+    if (res.error) { console.error('infractions:', res.error); return; }
+    allInfractions = res.data || [];
+    renderInfractions();
+  });
 }
 
 function renderInfractions() {
-  const grid = document.getElementById('infractions-grid');
+  var grid  = document.getElementById('infractions-grid');
+  var badge = document.getElementById('badge-infractions');
   if (!grid) return;
-  if (!allInfractions.length) { grid.innerHTML = emptyState('alert-triangle','No infractions recorded'); return; }
-  grid.innerHTML = allInfractions.map(inf => {
-    const tech = allTechs.find(t => t.user_id === inf.technician_id);
-    return `
-    <div class="infraction-card glass">
-      <div class="infraction-header">
-        <span class="infraction-tech">${tech ? techName(tech) : 'Unknown'}</span>
-        <span class="severity-pill ${inf.severity || 'low'}">${inf.severity || 'low'}</span>
-        ${inf.status === 'resolved' ? '<span class="status-pill green">Resolved</span>' : ''}
-      </div>
-      <p class="infraction-desc">${esc(inf.description || '–')}</p>
-      <div class="infraction-footer">
-        <span class="infraction-date">${formatDate(inf.created_at)}</span>
-        ${inf.status !== 'resolved' ? `<button class="btn-sm btn-primary" onclick="resolveInfraction('${inf.id}')"><i data-feather="check"></i> Mark Resolved</button>` : ''}
-      </div>
-    </div>`;
+  var open = allInfractions.filter(function (i) { return !i.resolved; });
+  if (badge) badge.textContent = open.length > 0 ? open.length : '';
+  if (allInfractions.length === 0) {
+    grid.innerHTML = '<p class="empty-msg">No infractions on record.</p>';
+    return;
+  }
+  grid.innerHTML = allInfractions.map(function (inf) {
+    var techName = (inf.technicians && inf.technicians.full_name)
+      ? inf.technicians.full_name : 'Unknown';
+    return '<div class="infraction-card glass ' + (inf.resolved ? 'resolved' : '') + '">' +
+      '<div class="inf-header">' +
+        '<span class="inf-tech">' + esc(techName) + '</span>' +
+        '<span class="badge sev-' + esc(inf.severity || 'low') + '">' + esc(inf.severity || 'low') + '</span>' +
+      '</div>' +
+      '<div class="inf-desc">' + esc(inf.description || '') + '</div>' +
+      '<div class="inf-reason">' + esc(inf.reason || '') + '</div>' +
+      (!inf.resolved
+        ? '<button class="btn-sm btn-pink" onclick="resolveInfraction(\'' + inf.id + '\')">Resolve</button>'
+        : '<span class="resolved-label">✓ Resolved</span>') +
+    '</div>';
   }).join('');
+  if (window.feather) feather.replace();
 }
 
-function renderEarnings() {
-  const completedJobs = allJobs.filter(j => j.status === 'completed');
-  let totalEarnings = 0, totalMinutes = 0;
-  completedJobs.forEach(j => {
-    totalEarnings += parseFloat(j.job_rate || 0);
-    if (j.check_in_time && j.check_out_time)
-      totalMinutes += (new Date(j.check_out_time) - new Date(j.check_in_time)) / 60000;
+function resolveInfraction(id) {
+  sb.from('infractions').update({ resolved: true, status: 'resolved' }).eq('id', id).then(function (res) {
+    if (res.error) { showToast('Error: ' + res.error.message, 'error'); return; }
+    showToast('Infraction resolved.', 'success');
+    loadInfractions();
   });
-  setEl('earn-total', '$' + totalEarnings.toFixed(2));
-  setEl('earn-hours', formatMinutes(totalMinutes));
-  setEl('earn-count', completedJobs.length);
+}
+window.resolveInfraction = resolveInfraction;
 
-  const grid = document.getElementById('earnings-breakdown');
-  if (!grid) return;
-  if (!allTechs.length) { grid.innerHTML = emptyState('dollar-sign','No data yet'); return; }
-  grid.innerHTML = allTechs.map(tech => {
-    const techJobs = completedJobs.filter(j => j.technician_id === tech.user_id);
-    const earnings = techJobs.reduce((sum, j) => sum + parseFloat(j.job_rate || 0), 0);
-    let mins = 0;
-    techJobs.forEach(j => {
-      if (j.check_in_time && j.check_out_time)
-        mins += (new Date(j.check_out_time) - new Date(j.check_in_time)) / 60000;
-    });
-    return `
-    <div class="earn-breakdown-card glass">
-      <div class="earn-bd-header">
-        <div class="tech-avatar sm">${techInitials(tech)}</div>
-        <div class="earn-bd-name">${techName(tech)}</div>
-      </div>
-      <div class="earn-bd-stats">
-        <div class="ebs"><div class="ebs-val">$${earnings.toFixed(2)}</div><div class="ebs-lbl">Earnings</div></div>
-        <div class="ebs"><div class="ebs-val">${formatMinutes(mins)}</div><div class="ebs-lbl">Hours</div></div>
-        <div class="ebs"><div class="ebs-val">${techJobs.length}</div><div class="ebs-lbl">Jobs</div></div>
-      </div>
-    </div>`;
+// ── Earnings ───────────────────────────────────────────────────
+function loadEarnings() {
+  var completedJobs = allJobs.filter(function (j) { return j.status === 'completed'; });
+  var total = completedJobs.reduce(function (sum, j) {
+    return sum + (parseFloat(j.job_rate) || 0);
+  }, 0);
+  setText('earn-total', '$' + total.toFixed(2));
+  setText('earn-hours', (completedJobs.length * 2) + 'h');
+  setText('earn-count', completedJobs.length);
+  renderEarningsBreakdown(completedJobs);
+}
+window.loadEarnings = loadEarnings;
+
+function renderEarningsBreakdown(jobs) {
+  var el = document.getElementById('earnings-breakdown');
+  if (!el) return;
+  if (jobs.length === 0) { el.innerHTML = '<p class="empty-msg">No completed jobs yet.</p>'; return; }
+  el.innerHTML = jobs.map(function (j) {
+    return '<div class="earn-row glass">' +
+      '<span>' + esc(j.title || 'Untitled') + '</span>' +
+      '<span>$' + parseFloat(j.job_rate || 0).toFixed(2) + '</span>' +
+    '</div>';
   }).join('');
 }
 
-function renderUserMgmt() {
-  const ag = document.getElementById('admins-grid');
-  if (ag) ag.innerHTML = allAdmins.length
-    ? allAdmins.map(a => `
-      <div class="user-card glass">
-        <div class="user-card-inner">
-          <div class="tech-avatar">${initials(a.name || a.email)}</div>
-          <div style="flex:1"><div class="tech-name">${esc(a.name || '–')}</div><div class="tech-email">${esc(a.email || '–')}</div></div>
-          <span class="status-pill pink">Admin</span>
-        </div>
-        <div class="tech-actions">
-          <button class="btn-sm btn-ghost" onclick="openResetPwModal('${a.user_id}','${esc(a.name || a.email)}')"><i data-feather="lock"></i> Reset PW</button>
-        </div>
-      </div>`).join('')
-    : emptyState('shield','No admins found');
+// ── Stats ──────────────────────────────────────────────────────
+function updateStats() {
+  var active  = allTechs.filter(function (t) {
+    return t.status === 'approved' || t.status === 'active';
+  }).length;
+  var pending = allJobs.filter(function (j) { return j.status === 'pending'; }).length;
 
-  const tg = document.getElementById('usermgmt-techs-grid');
-  if (tg) tg.innerHTML = allTechs.length
-    ? allTechs.map(t => `
-      <div class="user-card glass">
-        <div class="user-card-inner">
-          <div class="tech-avatar">${techInitials(t)}</div>
-          <div style="flex:1"><div class="tech-name">${techName(t)}</div><div class="tech-email">${esc(t.email || '–')}</div></div>
-          <span class="status-pill blue">Tech</span>
-        </div>
-        <div class="tech-actions">
-          <button class="btn-sm btn-ghost" onclick="openResetPwModal('${t.user_id}','${esc(techName(t))}')"><i data-feather="lock"></i> Reset PW</button>
-        </div>
-      </div>`).join('')
-    : emptyState('users','No technicians found');
+  setText('stat-jobs',    allJobs.length);
+  setText('stat-active',  active);
+  setText('stat-pending', pending);
+  setText('stat-techs',   allTechs.length);
+  setText('m-stat-jobs',    allJobs.length);
+  setText('m-stat-active',  active);
+  setText('m-stat-pending', pending);
+  setText('m-stat-techs',   allTechs.length);
 }
 
-/* ══════════════════════════════════════════════════════════════
-   NEW WORK ORDER
-══════════════════════════════════════════════════════════════ */
-function populateNewJobForm() {
-  const cs = document.getElementById('nj-client');
-  if (cs) cs.innerHTML = '<option value="">Select client…</option>' +
-    allClients.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  const ts = document.getElementById('nj-tech');
-  if (ts) ts.innerHTML = '<option value="">Unassigned</option>' +
-    allTechs.map(t => `<option value="${t.user_id}">${techName(t)}</option>`).join('');
+function setText(id, val2) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = val2;
 }
 
-async function createWorkOrder() {
-  const title  = val('nj-title');
-  const desc   = val('nj-description');
-  const client = val('nj-client');
-  const tech   = val('nj-tech');
-  const prio   = val('nj-priority');
-  const rate   = val('nj-rate');
-  const date   = val('nj-date');
-  const time   = val('nj-time');
-  const notes  = val('nj-notes');
-  if (!title) { showToast('Job title is required', '
+// ══════════════════════════════════════════════════════════════
+//  MAP
+// ══════════════════════════════════════════════════════════════
+function initMap() {
+  if (mapInstance) return;
+  var container = document.getElementById('map-container');
+  if (!container) return;
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+  mapInstance = new mapboxgl.Map({
+    container: 'map-container',
+    style: 'mapbox://styles/mapbox/dark-v11',
+    center: [-82.0, 41.5],
+    zoom: 9
+  });
+  mapInstance.addControl(new mapboxgl.NavigationControl());
+}
+
+function placeTechMarkers() {
+  if (!mapInstance) return;
+  techMarkers.forEach(function (m) { m.remove(); });
+  techMarkers = [];
+  allTechs.forEach(function (t) {
+    if (!t.lat || !t.lng) return;
+    var el = document.createElement('div');
+    el.className = 'tech-marker';
+    el.title = t.full_name || 'Tech';
+    var marker = new mapboxgl.Marker(el)
+      .setLngLat([t.lng, t.lat])
+      .setPopup(new mapboxgl.Popup().setHTML(
+        '<strong>' + esc(t.full_name || '') + '</strong><br/>' +
+        esc(t.city || '') + '<br/>Status: ' + esc(t.status || '')
+      ))
+      .addTo(mapInstance);
+    techMarkers.push(marker);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SELECTS
+// ══════════════════════════════════════════════════════════════
+function populateTechSelects() {
+  var selects = [
+    document.getElementById('modal-tech-select'),
+    document.getElementById('nj-tech')
+  ];
+  var approved = allTechs.filter(function (t) {
+    return t.status === 'approved' || t.status === 'active';
+  });
+  selects.forEach(function (sel) {
+    if (!sel) return;
+    var current = sel.value;
+    sel.innerHTML = '<option value="">-- Select Tech --</option>' +
+      approved.map(function (t) {
+        return '<option value="' + t.id + '">' + esc(t.full_name || t.email) + '</option>';
+      }).join('');
+    if (current) sel.value = current;
+  });
+}
+
+function populateClientSelect() {
+  var sel = document.getElementById('nj-client');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- Select Client --</option>' +
+    allClients.map(function (c) {
+      return '<option value="' + c.id + '">' + esc(c.name) + '</option>';
+    }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ASSIGN MODAL
+// ══════════════════════════════════════════════════════════════
+function openAssignModal(jobId, jobTitle) {
+  currentAssignJobId = jobId;
+  var titleEl = document.getElementById('modal-job-title');
+  if (titleEl) titleEl.textContent = jobTitle || 'Job';
+  openModal('assign-modal');
+}
+window.openAssignModal = openAssignModal;
+
+function confirmAssign() {
+  var sel = document.getElementById('modal-tech-select');
+  if (!sel || !sel.value) { showToast('Select a technician first.', 'error'); return; }
+  if (!currentAssignJobId) { showToast('No job selected.', 'error'); return; }
+  sb.from('jobs').update({ technician_id: sel.value, status: 'assigned' })
+    .eq('id', currentAssignJobId).then(function (res) {
+      if (res.error) { showToast('Error: ' + res.error.message, 'error'); return; }
+      showToast('Technician assigned!', 'success');
+      closeModal('assign-modal');
+      loadJobs();
+    });
+}
+window.confirmAssign = confirmAssign;
+
+// ══════════════════════════════════════════════════════════════
+//  CREATE USER MODAL
+// ══════════════════════════════════════════════════════════════
+function openCreateUserModal() {
+  clearField('cu-name');
+  clearField('cu-email');
+  clearField('cu-password');
+  clearField('cu-phone');
+  clearField('cu-city');
+  var roleEl = document.getElementById('cu-role');
+  if (roleEl) roleEl.value = 'technician';
+  setError('cu-error', '');
+  toggleTechFields();
+  openModal('create-user-modal');
+}
+window.openCreateUserModal = openCreateUserModal;
+
+function toggleTechFields() {
+  var roleEl    = document.getElementById('cu-role');
+  var techBlock = document.getElementById('cu-tech-fields');
+  if (!roleEl || !techBlock) return;
+  techBlock.style.display = (roleEl.value === 'technician') ? '' : 'none';
+}
+window.toggleTechFields = toggleTechFields;
+
+function createUser() {
+  var name  = val('cu-name');
+  var email = val('cu-email');
+  var pass  = val('cu-password');
+  var role  = val('cu-role') || 'technician';
+  var phone = val('cu-phone');
+  var city  = val('cu-city');
+
+  if (!name || !email || !pass) {
+    setError('cu-error', 'Name, email and password are required.');
+    return;
+  }
+  if (pass.length < 6) {
+    setError('cu-error', 'Password must be at least 6 characters.');
+    return;
+  }
+
+  var btn = document.getElementById('cu-submit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+  setError('cu-error', '');
+
+  sb.auth.signUp({
+    email: email,
+    password: pass,
+    options: { data: { full_name: name, role: role } }
+  }).then(function (res) {
+    if (res.error) {
+      var msg = res.error.message || 'Signup error';
+      setError('cu-error', msg);
+      if (btn) { btn.disabled = false; btn.textContent = 'Create User'; }
+      return;
+    }
+
+    var userId = res.data && res.data.user && res.data.user.id;
+
+    // Insert into technicians table if role = technician
+    if (userId && role === 'technician') {
+      sb.from('technicians').insert({
+        user_id:   userId,
+        full_name: name,
+        email:     email,
+        phone:     phone,
+        city:      city,
+        status:    'approved',
+        role:      'technician',
+        is_active: true
+      }).then(function (insRes) {
+        if (insRes.error) console.warn('Tech row insert error:', insRes.error);
+      });
+    }
+
+    showToast('User created: ' + email, 'success');
+    closeModal('create-user-modal');
+    if (btn) { btn.disabled = false; btn.textContent = 'Create User'; }
+
+    // Refresh the correct panel
+    loadTechs();
+  }).catch(function (e) {
+    setError('cu-error', e.message || 'Unknown error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Create User'; }
+  });
+}
+window.createUser = createUser;
+
+
+// ══════════════════════════════════════════════════════════════
+//  RESET PASSWORD MODAL
+// ══════════════════════════════════════════════════════════════
+function openResetPwModal(techId, techName) {
+  var uidEl   = document.getElementById('reset-pw-uid');
+  var labelEl = document.getElementById('reset-pw-label');
+  if (uidEl)   uidEl.value       = techId || '';
+  if (labelEl) labelEl.textContent = 'Reset password for: ' + (techName || '');
+  clearField('reset-pw-input');
+  clearField('reset-pw-confirm');
+  setError('reset-pw-error', '');
+  openModal('reset-pw-modal');
+}
+window.openResetPwModal = openResetPwModal;
+window.openResetPw = openResetPwModal;
+
+function confirmResetPw() {
+  var newPw    = val('reset-pw-input');
+  var confirm2 = val('reset-pw-confirm');
+  if (!newPw || newPw.length < 6) {
+    setError('reset-pw-error', 'Password must be at least 6 characters.');
+    return;
+  }
+  if (newPw !== confirm2) {
+    setError('reset-pw-error', 'Passwords do not match.');
+    return;
+  }
+  sb.auth.updateUser({ password: newPw }).then(function (res) {
+    if (res.error) { setError('reset-pw-error', res.error.message); return; }
+    showToast('Password updated!', 'success');
+    closeModal('reset-pw-modal');
+  });
+}
+window.confirmResetPw = confirmResetPw;
+
+// ══════════════════════════════════════════════════════════════
+//  CREATE CLIENT MODAL
+// ══════════════════════════════════════════════════════════════
+function openCreateClientModal() {
+  clearField('cc-name');
+  clearField('cc-email');
+  clearField('cc-phone');
+  clearField('cc-city');
+  clearField('cc-address');
+  setError('cc-error', '');
+  openModal('create-client-modal');
+}
+window.openCreateClientModal = openCreateClientModal;
+
+function createClient() {
+  var name    = val('cc-name');
+  var email   = val('cc-email');
+  var phone   = val('cc-phone');
+  var city    = val('cc-city');
+  var address = val('cc-address');
+
+  if (!name) { setError('cc-error', 'Client name is required.'); return; }
+
+  var btn = document.querySelector('#create-client-modal .btn-pink');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  setError('cc-error', '');
+
+  sb.from('clients')
+    .insert({ name: name, email: email, phone: phone, city: city, address: address })
+    .then(function (res) {
+      if (res.error) {
+        setError('cc-error', res.error.message);
+        if (btn) { btn.disabled = false; btn.textContent = 'Add Client'; }
+        return;
+      }
+      showToast('Client added!', 'success');
+      closeModal('create-client-modal');
+      if (btn) { btn.disabled = false; btn.textContent = 'Add Client'; }
+      loadClients();
+    });
+}
+window.createClient = createClient;
+
+// ══════════════════════════════════════════════════════════════
+//  NEW JOB / WORK ORDER
+// ══════════════════════════════════════════════════════════════
+function createWorkOrder() {
+  var title    = val('nj-title');
+  var desc     = val('nj-description');
+  var clientId = val('nj-client');
+  var techId   = val('nj-tech');
+  var priority = val('nj-priority') || 'low';
+  var rate     = val('nj-rate');
+  var date     = val('nj-date');
+  var time     = val('nj-time');
+  var notes    = val('nj-notes');
+
+  if (!title || !clientId) {
+    showToast('Title and client are required.', 'error');
+    return;
+  }
+
+  sb.from('jobs').insert({
+    title:          title,
+    description:    desc     || null,
+    client_id:      clientId || null,
+    technician_id:  techId   || null,
+    priority:       priority,
+    status:         techId ? 'assigned' : 'pending',
+    job_rate:       rate  ? parseFloat(rate) : null,
+    scheduled_date: date  || null,
+    scheduled_time: time  || null,
+    notes:          notes || null
+  }).then(function (res) {
+    if (res.error) { showToast('Error: ' + res.error.message, 'error'); return; }
+    showToast('Work order created!', 'success');
+    ['nj-title','nj-description','nj-client','nj-tech',
+     'nj-rate','nj-date','nj-time','nj-notes'].forEach(clearField);
+    loadJobs();
+    showPanel('workorders');
+  });
+}
+window.createWorkOrder = createWorkOrder;
+
+// ══════════════════════════════════════════════════════════════
+//  WORK ORDER FILTERS
+// ══════════════════════════════════════════════════════════════
+function filterWorkOrders(status, el) {
+  var tabs = document.querySelectorAll('.filter-tab');
+  tabs.forEach(function (t) { t.classList.remove('active'); });
+  if (el) el.classList.add('active');
+
+  var grid = document.getElementById('workorders-grid');
+  if (!grid) return;
+  var filtered = status === 'all'
+    ? allJobs
+    : allJobs.filter(function (j) { return j.status === status; });
+  grid.innerHTML = filtered.map(jobCard).join('');
+  if (window.feather) feather.replace();
+}
+window.filterWorkOrders = filterWorkOrders;
+
+// ══════════════════════════════════════════════════════════════
+//  MODAL HELPERS
+// ══════════════════════════════════════════════════════════════
+function openModal(id) {
+  var m = document.getElementById(id);
+  if (m) m.classList.add('open');
+}
+
+function closeModal(id) {
+  var m = document.getElementById(id);
+  if (m) m.classList.remove('open');
+}
+window.closeModal = closeModal;
+
+// ══════════════════════════════════════════════════════════════
+//  UTILITY
+// ══════════════════════════════════════════════════════════════
+function val(id) {
+  var el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+
+function clearField(id) {
+  var el = document.getElementById(id);
+  if (el) el.value = '';
+}
+
+function setError(id, msg) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = msg || '';
+}
+
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+
+if (job.technician_id === null) {
+  showAssignButton(job.id);
+} else {
+  showUnassignButton(job.id);
+}
+
+async function loadAdminRequests() {
+  const { data: reqs, error } = await sb
+    .from("job_requests")
+    .select(`
+      id,
+      job_id,
+      tech_id,
+      status,
+      requested_at,
+      jobs (
+        title,
+        scheduled_date,
+        scheduled_time,
+        clients ( name, address )
+      ),
+      technicians ( full_name )
+    `)
+    .eq("status", "requested");
+
+  if (error) {
+    console.error("loadAdminRequests error:", error);
+    return;
+  }
+
+  renderAdminRequests(reqs);
+}
+window.loadAdminRequests = loadAdminRequests;
+
+
+
+  // Load technician names
+  const { data: techs } = await sb
+    .from("technicians")
+    .select("id, full_name");
+
+  const techMap = {};
+  techs.forEach(t => techMap[t.id] = t.full_name);
+
+  // Attach names
+  const enriched = jobs.map(job => ({
+    ...job,
+    requested_names: (job.requested_by || []).map(id => techMap[id] || id)
+  }));
+
+  renderAdminRequests(enriched);
+}
+window.loadAdminRequests = loadAdminRequests;
+
+function renderAdminRequests(reqs) {
+  var el = document.getElementById('admin-requests-list');
+  if (!el) return;
+
+  if (reqs.length === 0) {
+    el.innerHTML = '<p class="empty-msg">No pending workorder requests.</p>';
+    return;
+  }
+
+  el.innerHTML = reqs.map(r => `
+    <div class="job-card glass">
+      <h3>${r.jobs.title}</h3>
+
+      <p><strong>Client:</strong> ${r.jobs.clients?.name || ''}</p>
+      <p><strong>Address:</strong> ${r.jobs.clients?.address || ''}</p>
+
+      <p><strong>Scheduled:</strong> ${r.jobs.scheduled_date || ''} ${r.jobs.scheduled_time || ''}</p>
+
+      <p><strong>Requested By:</strong> ${r.technicians.full_name}</p>
+
+      <button class="btn-sm btn-pink"
+              onclick="approveRequest('${r.id}', '${r.job_id}', '${r.tech_id}')">
+        Approve
+      </button>
+
+      <button class="btn-sm btn-danger"
+              onclick="rejectRequest('${r.id}')">
+        Reject
+      </button>
+    </div>
+  `).join('');
+
+  if (window.feather) feather.replace();
+}
+window.renderAdminRequests = renderAdminRequests;
+
+
+
+function approveRequest(requestId, jobId, techId) {
+  // 1. Assign technician to job
+  sb.from("jobs")
+    .update({
+      technician_id: techId,
+      status: "assigned"
+    })
+    .eq("id", jobId);
+
+  // 2. Mark request approved
+  sb.from("job_requests")
+    .update({ status: "approved" })
+    .eq("id", requestId)
+    .then(() => {
+      showToast("Request approved!", "success");
+      loadAdminRequests();
+      loadJobs();
+    });
+}
+window.approveRequest = approveRequest;
+
+
+
+function rejectRequest(requestId) {
+  sb.from("job_requests")
+    .update({ status: "rejected" })
+    .eq("id", requestId)
+    .then(() => {
+      showToast("Request rejected.", "success");
+      loadAdminRequests();
+    });
+}
+window.rejectRequest = rejectRequest;
