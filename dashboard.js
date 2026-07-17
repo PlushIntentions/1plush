@@ -229,30 +229,41 @@ function techCard(t) {
 }
 
 // ── Approvals ──────────────────────────────────────────────────
-function renderApprovals() {
-  var grid  = document.getElementById('approvals-grid');
-  var badge = document.getElementById('badge-approvals');
-  if (!grid) return;
-  var pending = allTechs.filter(function (t) {
-    return t.status === 'pending_approval' || t.status === 'pending';
-  });
-  if (badge) badge.textContent = pending.length > 0 ? pending.length : '';
-  grid.innerHTML = pending.length === 0
-    ? '<p class="empty-msg">No pending approvals.</p>'
-    : pending.map(function (t) {
-        return '<div class="tech-card glass">' +
-          '<div class="tech-name">' + esc(t.full_name || 'Unknown') + '</div>' +
-          '<div class="tech-meta">' +
-            '<span>' + esc(t.email || '') + '</span>' +
-            '<span>' + esc(t.city || '') + '</span>' +
-          '</div>' +
-          '<div class="tech-actions">' +
-            '<button class="btn-sm btn-pink" onclick="approveTech(\'' + t.id + '\')">Approve</button>' +
-            '<button class="btn-sm btn-danger" onclick="rejectTech(\'' + t.id + '\')">Reject</button>' +
-          '</div>' +
-        '</div>';
-      }).join('');
-  if (window.feather) feather.replace();
+function renderApprovals(list) {
+  const el = document.getElementById("approvals-grid");
+
+  if (!list.length) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <i data-feather="user-check"></i>
+        <p>No pending approvals</p>
+      </div>
+    `;
+    return;
+  }
+
+  el.innerHTML = list.map(a => `
+    <div class="card card-large">
+      <div class="card-top">
+        <div>
+          <div class="card-title">${a.title}</div>
+          <div class="card-sub">${a.client_name}</div>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <span><strong>Scheduled:</strong> ${a.scheduled_date} ${a.scheduled_time}</span>
+        <span><strong>Rate:</strong> $${a.rate}</span>
+      </div>
+
+      <div class="card-actions">
+        <button class="btn-sm btn-pink" onclick="approveJob('${a.id}')">Approve</button>
+        <button class="btn-sm btn-danger" onclick="rejectJob('${a.id}')">Reject</button>
+      </div>
+    </div>
+  `).join("");
+
+  feather.replace();
 }
 
 function approveTech(id) {
