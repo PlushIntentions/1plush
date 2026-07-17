@@ -794,3 +794,51 @@ if (jobs.technician_id === null) {
 } else {
   showUnassignButton(job.id);
 }
+function renderAdminJobRequests(reqs) {
+  const el = document.getElementById("jobrequests-grid");
+  if (!el) return;
+
+  if (reqs.length === 0) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <i data-feather="file-text"></i>
+        <p>No job requests</p>
+      </div>
+    `;
+    return;
+  }
+
+  el.innerHTML = reqs.map(r => `
+    <div class="card card-large">
+      <div class="card-top">
+        <div>
+          <div class="card-title">${r.jobs.title}</div>
+          <div class="card-sub">${r.jobs.clients.name} — ${r.jobs.clients.address}</div>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <span><strong>Requested By:</strong> ${r.technicians.full_name}</span>
+        <span><strong>Scheduled:</strong> ${r.jobs.scheduled_date} ${r.jobs.scheduled_time}</span>
+
+        <div class="desc-scroll">
+          ${r.jobs.description || "No description provided."}
+        </div>
+      </div>
+
+      <div class="card-actions">
+        <button class="btn-sm btn-pink"
+                onclick="approveRequest('${r.id}', '${r.job_id}', '${r.tech_id}')">
+          Approve
+        </button>
+
+        <button class="btn-sm btn-danger"
+                onclick="rejectRequest('${r.id}')">
+          Reject
+        </button>
+      </div>
+    </div>
+  `).join("");
+
+  feather.replace();
+}
