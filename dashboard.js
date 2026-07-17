@@ -87,12 +87,9 @@ window.closeSidebar = closeSidebar;
 // ══════════════════════════════════════════════════════════════
 //  PANEL NAVIGATION
 // ══════════════════════════════════════════════════════════════
-var PANELS = [
-  'map','jobs','pending','techs','clients','completed',
-  'approvals','workorders','infractions','earnings',
-  'usermgmt','newjob','admin-requests'
-];
-
+var PANELS = ['map','jobs','pending','techs','clients','completed',
+              'approvals','workorders','infractions','earnings','usermgmt','newjob',
+              'admin-requests'];
 
 
 function showPanel(name) {
@@ -150,31 +147,6 @@ function loadJobs() {
     updateStats();
   });
 }
-
-// Listen for realtime job request changes
-sb.channel('job_requests_changes')
-  .on(
-    'postgres_changes',
-    {
-      event: '*',
-      schema: 'public',
-      table: 'job_requests'
-    },
-    payload => {
-      console.log("Realtime job request event:", payload);
-
-      // Refresh admin requests panel if it's open
-      const activePanel = document.querySelector('.panel.active');
-      if (activePanel && activePanel.id === 'panel-admin-requests') {
-        loadAdminRequests();
-      }
-
-      // Always refresh badge counter
-      updateAdminRequestBadge();
-    }
-  )
-  .subscribe();
-
 
 function renderJobs() {
   var allGrid       = document.getElementById('jobs-grid');
@@ -826,147 +798,37 @@ if (job.technician_id === null) {
 }
 
 async function loadAdminRequests() {
-  const { data: reqs, error } = await sb
-    .from("job_requests")
+  const { data: jobs, error } = await sb
+    .from("jobs")
     .select(`
       id,
-      job_id,
-      tech_id,
-      status,
-      requested_at,
-      jobs (
-        title,
-        scheduled_date,
-        scheduled_time,
-        clients ( name, address )
-      ),
-      technicians ( full_name )
+      title,
+      scheduled_date,
+      scheduled_time,
+      requested_by,
+      request_status,
+      clients ( name, address )
     `)
-    .eq("status", "requested");
+    .eq("request_status", "requested");
 
   if (error) {
-    console.error("loadAdminRequests error:", error);
+    console.error(error);
     return;
   }
 
-  renderAdminRequests(reqs);
-}
-window.loadAdminRequests = loadAdminRequests;
-
-
-
-  // Load technician names
+  // Fetch all tech profiles once
   const { data: techs } = await sb
-    .from("technicians")
+    .from("profiles")
     .select("id, full_name");
 
-  const techMap = {};
-  techs.forEach(t => techMap[t.id] = t.full_name);
-
-  // Attach names
+  // Attach names to each job
   const enriched = jobs.map(job => ({
     ...job,
-    requested_names: (job.requested_by || []).map(id => techMap[id] || id)
+    requested_names: job.requested_by.map(id => {
+      const tech = techs.find(t => t.id === id);
+      return tech ? tech.full_name : id;
+    })
   }));
 
   renderAdminRequests(enriched);
 }
-window.loadAdminRequests = loadAdminRequests;
-
-function renderAdminRequests(reqs) {
-  var el = document.getElementById('admin-requests-list');
-  if (!el) return;
-
-  if (reqs.length === 0) {
-    el.innerHTML = '<p class="empty-msg">No pending workorder requests.</p>';
-    return;
-  }
-
-  el.innerHTML = reqs.map(r => `
-    <div class="job-card glass">
-      <h3>${r.jobs.title}</h3>
-
-      <p><strong>Client:</strong> ${r.jobs.clients?.name || ''}</p>
-      <p><strong>Address:</strong> ${r.jobs.clients?.address || ''}</p>
-
-      <p><strong>Scheduled:</strong> ${r.jobs.scheduled_date || ''} ${r.jobs.scheduled_time || ''}</p>
-
-      <p><strong>Requested By:</strong> ${r.technicians.full_name}</p>
-
-      <button class="btn-sm btn-pink"
-              onclick="approveRequest('${r.id}', '${r.job_id}', '${r.tech_id}')">
-        Approve
-      </button>
-
-      <button class="btn-sm btn-danger"
-              onclick="rejectRequest('${r.id}')">
-        Reject
-      </button>
-    </div>
-  `).join('');
-
-  if (window.feather) feather.replace();
-}
-window.renderAdminRequests = renderAdminRequests;
-
-
-
-function approveRequest(requestId, jobId, techId) {
-  // 1. Assign technician to job
-  sb.from("jobs")
-    .update({
-      technician_id: techId,
-      status: "assigned"
-    })
-    .eq("id", jobId);
-
-  // 2. Mark request approved
-  sb.from("job_requests")
-    .update({ status: "approved" })
-    .eq("id", requestId)
-    .then(() => {
-      showToast("Request approved!", "success");
-      loadAdminRequests();
-      loadJobs();
-    });
-}
-window.approveRequest = approveRequest;
-
-
-
-function rejectRequest(requestId) {
-  sb.from("job_requests")
-    .update({ status: "rejected" })
-    .eq("id", requestId)
-    .then(() => {
-      showToast("Request rejected.", "success");
-      loadAdminRequests();
-    });
-}
-window.rejectRequest = rejectRequest;
-
-async function updateAdminRequestBadge() {
-  const { data, error } = await sb
-    .from("job_requests")
-    .select("id")
-    .eq("status", "requested");
-
-  if (error) {
-    console.error("badge error:", error);
-    return;
-  }
-
-  const badge = document.getElementById('badge-admin-requests');
-  if (badge) {
-    badge.textContent = data.length > 0 ? data.length : '';
-  }
-}
-window.updateAdminRequestBadge = updateAdminRequestBadge;
-
-
-sb.from("job_requests").insert({
-  job_id: jobId,
-  tech_id: techId,
-  status: "requested"
-});
-
