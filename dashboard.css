@@ -459,6 +459,19 @@ body::before {
 .card-body span { display: flex; align-items: center; gap: 6px; }
 .card-body svg { width: 12px; height: 12px; flex-shrink: 0; color: var(--pink); }
 .card-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.card.card-large {
+  padding: 20px;
+}
+
+.card-body .desc-scroll {
+  max-height: 110px;
+  overflow-y: auto;
+  background: rgba(255,255,255,0.12);
+  padding: 8px;
+  border-radius: 6px;
+  margin-top: 6px;
+}
+
 
 /* ── STATUS / PRIORITY BADGES ───────────────────────────── */
 .badge {
