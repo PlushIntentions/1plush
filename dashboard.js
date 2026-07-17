@@ -789,7 +789,7 @@ function esc(str) {
 }
 
 
-if (job.technician_id === null) {
+if (jobs.technician_id === null) {
   showAssignButton(job.id);
 } else {
   showUnassignButton(job.id);
