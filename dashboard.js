@@ -805,6 +805,40 @@ if (jobs.technician_id === null) {
 } else {
   showUnassignButton(job.id);
 }
+
+async function loadPendingRequests() {
+  try {
+    const { data, error } = await sb
+      .from("job_requests")
+      .select("id, job_id, tech_id, status, created_at, jobs(title, location)")
+      .eq("status", "Pending")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    const container = document.getElementById("pending-requests-list");
+    container.innerHTML = "";
+
+    data.forEach(req => {
+      const item = document.createElement("div");
+      item.className = "request-item";
+      item.innerHTML = `
+        <h3>${req.jobs.title}</h3>
+        <p>Tech: ${req.tech_id}</p>
+        <p>Requested: ${new Date(req.created_at).toLocaleString()}</p>
+        <button onclick="approveRequest('${req.id}', '${req.job_id}', '${req.tech_id}')">Approve</button>
+        <button onclick="denyRequest('${req.id}')">Deny</button>
+      `;
+      container.appendChild(item);
+    });
+
+  } catch (err) {
+    console.error(err);
+    showToast("Failed to load requests.");
+  }
+}
+
+
 function renderAdminJobRequests(reqs) {
   const el = document.getElementById("jobrequests-grid");
   if (!el) return;
