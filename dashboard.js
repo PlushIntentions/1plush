@@ -477,21 +477,19 @@ function placeTechMarkers() {
 // ══════════════════════════════════════════════════════════════
 //  SELECTS
 // ══════════════════════════════════════════════════════════════
+
+
 function populateTechSelect() {
   var sel = document.getElementById('nj-tech');
-   var approved = allTechs.filter(function (t) {
-    return t.status === 'approved' || t.status === 'active';
-  });
-  selects.forEach(function (sel) {
-    if (!sel) return;
-    var current = sel.value;
-    sel.innerHTML = '<option value="">-- Select Tech --</option>' +
-      approved.map(function (t) {
-        return '<option value="' + t.id + '">' + esc(t.full_name || t.email) + '</option>';
-      }).join('');
-    if (current) sel.value = current;
-  });
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- Select Technician --</option>' +
+    allTechs.map(function (c) {
+      return '<option value="' + t.id + '">' + esc(t.full_name) + '</option>';
+    }).join('');
 }
+
+
+
 
 function populateClientSelect() {
   var sel = document.getElementById('nj-client');
