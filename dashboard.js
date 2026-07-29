@@ -477,12 +477,9 @@ function placeTechMarkers() {
 // ══════════════════════════════════════════════════════════════
 //  SELECTS
 // ══════════════════════════════════════════════════════════════
-function populateTechSelects() {
-  var selects = [
-    document.getElementById('modal-tech-select'),
-    document.getElementById('nj-tech')
-  ];
-  var approved = allTechs.filter(function (t) {
+function populateTechSelect() {
+  var sel = document.getElementById('nj-tech');
+   var approved = allTechs.filter(function (t) {
     return t.status === 'approved' || t.status === 'active';
   });
   selects.forEach(function (sel) {
