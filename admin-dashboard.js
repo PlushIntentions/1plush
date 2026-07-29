@@ -144,7 +144,7 @@ async function loadAdminRequests() {
 }
 
 function renderAdminRequests(jobs) {
-  const el = document.getElementById("admin-requests-list");
+  const el = document.getElementById("job-requests");
   el.innerHTML = "";
 
   if (!jobs.length) {
@@ -211,7 +211,7 @@ async function approveRequest(jobId) {
 
   // Fetch technician email
   const { data: techProfile } = await sb
-    .from("profiles")
+    .from("technicians")
     .select("email")
     .eq("id", techId)
     .maybeSingle();
