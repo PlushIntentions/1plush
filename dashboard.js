@@ -138,7 +138,7 @@ window.loadAllData = loadAllData;
 
 // ── Jobs ───────────────────────────────────────────────────────
 function loadJobs() {
-  sb.from('jobs').select('*, clients(name), technicians(full_name)').then(function (res) {
+  sb.from('jobs').select('*, clients(name), technicians!jobs_technician_id_fkey (full_name)').then(function (res) {
     if (res.error) { console.error('jobs:', res.error); return; }
     allJobs = res.data || [];
     renderJobs();
