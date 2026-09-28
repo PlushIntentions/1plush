@@ -229,16 +229,23 @@ function techCard(t) {
 }
 
 // ── Approvals ──────────────────────────────────────────────────
-function renderApprovals(list) {
+function renderApprovals() {
   const el = document.getElementById("approvals-grid");
+  if (!el) return;
 
-  if (!list.length) {
+  const list = allJobs.filter(j =>
+    j.status === 'pending_approval' ||
+    j.status === 'approval_pending'
+  );
+
+  if (list.length === 0) {
     el.innerHTML = `
       <div class="empty-state">
         <i data-feather="user-check"></i>
         <p>No pending approvals</p>
       </div>
     `;
+    feather.replace();
     return;
   }
 
@@ -246,14 +253,14 @@ function renderApprovals(list) {
     <div class="card card-large">
       <div class="card-top">
         <div>
-          <div class="card-title">${a.title}</div>
-          <div class="card-sub">${a.client_name}</div>
+          <div class="card-title">${a.title || ''}</div>
+          <div class="card-sub">${a.client_name || ''}</div>
         </div>
       </div>
 
       <div class="card-body">
-        <span><strong>Scheduled:</strong> ${a.scheduled_date} ${a.scheduled_time}</span>
-        <span><strong>Rate:</strong> $${a.rate}</span>
+        <span><strong>Scheduled:</strong> ${a.scheduled_date || ''} ${a.scheduled_time || ''}</span>
+        <span><strong>Rate:</strong> $${a.rate || 0}</span>
       </div>
 
       <div class="card-actions">
@@ -261,7 +268,7 @@ function renderApprovals(list) {
         <button class="btn-sm btn-danger" onclick="rejectJob('${a.id}')">Reject</button>
       </div>
     </div>
-  `).join("");
+  `).join('');
 
   feather.replace();
 }
