@@ -4,8 +4,8 @@
    ============================================================ */
 
 // ── Supabase init ──────────────────────────────────────────────
-const SUPA_URL = 'https://iazvpykfdckpffhakncd.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhenZweWtmZGNrcGZmaGFrbmNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNzA0MTEsImV4cCI6MjA5NTg0NjQxMX0.OOXhS1zLez30isOszxP0XOIyndpJq2jwqE90eY649bA'; // ← paste your anon key here
+const SUPA_URL = 'https://gsneugdwoxpibajghwge.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzbmV1Z2R3b3hwaWJhamdod2dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNjk2NjUsImV4cCI6MjA5Mzg0NTY2NX0.wmZDgY_fAfeiDlZzWLA4KT5_dlbyG7Ns1W4z_HZH8Ws'; // ← paste your anon key here
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 // ── Mapbox token ───────────────────────────────────────────────
