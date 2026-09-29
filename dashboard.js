@@ -1061,3 +1061,22 @@ function workOrderCard(j) {
 
     '</div>';
 }
+window.viewDocuments = function(jobId) {
+  console.log("View Documents for:", jobId);
+  alert("Documents viewer coming soon for job " + jobId);
+};
+
+window.viewMessages = function(jobId) {
+  console.log("View Messages for:", jobId);
+  alert("Messages viewer coming soon for job " + jobId);
+};
+
+window.unassignJobUI = function(jobId) {
+  console.log("Unassign job:", jobId);
+  alert("Unassign function coming soon for job " + jobId);
+};
+
+window.openAssignModal = function(jobId, jobTitle) {
+  console.log("Assign modal opened for:", jobId, jobTitle);
+  alert("Assign modal coming soon for job " + jobTitle);
+};
