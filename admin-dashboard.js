@@ -256,4 +256,9 @@ async function rejectRequest(jobId) {
 .job-tech-list {
   padding-left: 20px;
 }
+function loadPendingTechs() {
+  sb.from('pending_technicians').select('*').then(res => {
+    window.pendingTechs = res.data || [];
+    renderApprovals();
+  });
 
