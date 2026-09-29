@@ -1116,24 +1116,93 @@ function closeAssignModal() {
 
 // ── Global Work Order Actions ────────────────────────────────
 window.viewDocuments = function(jobId) {
-  console.log("View Documents for:", jobId);
-  alert("Documents viewer coming soon for job " + jobId);
+  const job = allJobs.find(j => j.id === jobId);
+  if (!job) return;
+
+  const modal = document.getElementById('documents-modal');
+  const list = document.getElementById('documents-list');
+
+  if (!modal || !list) {
+    console.error("Documents modal elements missing");
+    return;
+  }
+
+  // Render documents
+  if (!job.documents || job.documents.length === 0) {
+    list.innerHTML = `<p>No documents uploaded for this job.</p>`;
+  } else {
+    list.innerHTML = job.documents.map(doc => `
+      <div class="doc-item">
+        <span>${esc(doc.name)}</span>
+        <a href="${doc.url}" target="_blank">Open</a>
+      </div>
+    `).join('');
+  }
+
+  modal.classList.add('open');
 };
 
+
 window.viewMessages = function(jobId) {
-  console.log("View Messages for:", jobId);
-  alert("Messages viewer coming soon for job " + jobId);
+  const job = allJobs.find(j => j.id === jobId);
+  if (!job) return;
+
+  const modal = document.getElementById('messages-modal');
+  const list = document.getElementById('messages-list');
+
+  if (!modal || !list) {
+    console.error("Messages modal elements missing");
+    return;
+  }
+
+  // Render messages
+  if (!job.messages || job.messages.length === 0) {
+    list.innerHTML = `<p>No messages for this job.</p>`;
+  } else {
+    list.innerHTML = job.messages.map(msg => `
+      <div class="msg-item">
+        <strong>${esc(msg.sender)}</strong>
+        <p>${esc(msg.text)}</p>
+        <span>${esc(msg.timestamp)}</span>
+      </div>
+    `).join('');
+  }
+
+  modal.classList.add('open');
 };
+
 
 window.unassignJobUI = function(jobId) {
   console.log("Unassign job:", jobId);
-  alert("Unassign function coming soon for job " + jobId);
+
+  sb.from('jobs')
+    .update({ technician_id: null })
+    .eq('id', jobId)
+    .then(({ error }) => {
+      if (error) {
+        console.error("Unassign Error:", error);
+        alert("Error unassigning technician");
+        return;
+      }
+
+      loadJobs();
+      loadWorkOrders();
+    });
 };
 
-window.openAssignModal = function(jobId, jobTitle) {
-  console.log("Assign modal opened for:", jobId, jobTitle);
-  alert("Assign modal coming soon for job " + jobTitle);
+
+window.openAssignModal = function(jobId) {
+  const job = allJobs.find(j => j.id === jobId);
+  if (!job) return;
+
+  document.getElementById('assign-job-id').value = jobId;
+  document.getElementById('assign-job-title').textContent =
+    job.title || job.name || job.job_title || "Job";
+
+  populateTechSelects();
+  document.getElementById('assign-modal').classList.add('open');
 };
+
 window.populateTechSelects = function() {
   // Find ALL dropdowns that should contain technicians
   var sel = document.querySelectorAll('.tech-select');
