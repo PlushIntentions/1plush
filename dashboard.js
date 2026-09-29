@@ -1112,12 +1112,21 @@ window.openAssignModal = function(jobId, jobTitle) {
   alert("Assign modal coming soon for job " + jobTitle);
 };
 window.populateTechSelects = function() {
-  var sel = document.getElementById('assign-tech-select');
-  if (!sel) return;
+  // Find ALL dropdowns that should contain technicians
+  var selects = document.querySelectorAll('.tech-select');
+  if (!selects.length) return;
 
-  sel.innerHTML = window.allTechs
-    .map(t => '<option value="' + t.id + '">' + esc(t.full_name) + '</option>')
-    .join('');
+  // Build the options
+  var options = window.allTechs.map(function(t) {
+    return '<option value="' + t.id + '">' + esc(t.full_name || 'Unnamed Tech') + '</option>';
+  }).join('');
+
+  // Insert into every dropdown
+  selects.forEach(function(sel) {
+    sel.innerHTML = options;
+  });
+};
+
 };
 function loadPendingTechs() {
   sb.from('pending_technicians').select('*').then(res => {
