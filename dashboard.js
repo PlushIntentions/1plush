@@ -1229,3 +1229,23 @@ function loadApprovals() {
 
 // Make it global for inline onclick handlers
 window.loadApprovals = loadApprovals;
+
+function renderWorkOrders() {
+  const woGrid = document.getElementById('workorders-grid');
+  if (!woGrid) return;
+
+  // If no work orders exist
+  if (!allJobs || allJobs.length === 0) {
+    woGrid.innerHTML = `
+      <div class="empty-state">
+        <i data-feather="file-text"></i>
+        <p>No work orders</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Render each work order using your wide card renderer
+  woGrid.innerHTML = allJobs.map(workOrderCard).join('');
+}
+
