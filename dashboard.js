@@ -1156,4 +1156,44 @@ if (allJobs.technician_id === null) {
   showAssignButton(allJobs.id);
 } else {
   showUnassignButton(allJobs.id);
-}
+} 
+// ===== GLOBAL EXPORTS FOR INLINE HTML HANDLERS =====
+
+// Panels
+window.showPanel = showPanel;
+
+// Jobs
+window.loadJobs = loadJobs;
+window.renderJobs = renderJobs;
+
+// Work Orders
+window.loadWorkOrders = loadWorkOrders;
+window.renderWorkOrders = renderWorkOrders;
+
+// Approvals
+window.loadApprovals = loadApprovals;
+window.renderApprovals = renderApprovals;
+window.loadAdminJobRequests = loadAdminJobRequests;
+
+// Technician Actions
+window.approveTech = approveTech;
+window.rejectTech = rejectTech;
+
+// Assign / Unassign
+window.openAssignModal = openAssignModal;
+window.saveAssignment = saveAssignment;
+window.unassignJobUI = unassignJobUI;
+
+// Modal Controls
+window.closeAssignModal = closeAssignModal;
+
+// Dropdown Population
+window.populateTechSelects = populateTechSelects;
+
+// Button Renderers
+window.showAssignButton = showAssignButton;
+window.showUnassignButton = showUnassignButton;
+
+// Utility
+window.esc = esc;
+
