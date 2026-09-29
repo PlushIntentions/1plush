@@ -765,4 +765,30 @@ body::before {
 .wo-actions button:hover {
   background: #005fcc;
 }
+.workorder-card {
+  width: 100%;
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.job-section {
+  margin-top: 12px;
+}
+
+.job-box {
+  background: rgba(255,255,255,0.15);
+  padding: 10px;
+  border-radius: 8px;
+  margin-top: 6px;
+  white-space: pre-wrap;
+  backdrop-filter: blur(6px);
+}
+
+.job-tech-list {
+  padding-left: 20px;
+}
 
