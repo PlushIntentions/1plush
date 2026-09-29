@@ -596,6 +596,20 @@ function populateTechSelect() {
     }).join('');
 }
 
+function closeAssignModal() {
+  const modal = document.getElementById('assign-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+function closeDocumentsModal() {
+  const modal = document.getElementById('documents-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+function closeMessagesModal() {
+  const modal = document.getElementById('messages-modal');
+  if (modal) modal.classList.remove('open');
+}
 
 
 
