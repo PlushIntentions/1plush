@@ -1103,10 +1103,9 @@ window.openAssignModal = function(jobId, jobTitle) {
       }
 function closeAssignModal() {
   const modal = document.getElementById('assign-modal');
-  if (modal) {
-    modal.classList.remove('open');
-  }
+  if (modal) modal.classList.remove('open');
 }
+
 
        
       closeAssignModal();   // hide modal
