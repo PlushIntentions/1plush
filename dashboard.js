@@ -1,4 +1,4 @@
-/* ============================================================
+load/* ============================================================
    dashboard.js — Plush Intentions Admin Dashboard
    RULE: loader MUST be hidden SYNCHRONOUSLY before any await/async
    ============================================================ */
@@ -1214,3 +1214,18 @@ function loadWorkOrders() {
       console.error("Work Orders Load Error:", err);
     });
 }
+function loadApprovals() {
+  console.log("Loading approvals...");
+
+  // Load pending technicians
+  sb.from('pending_technicians')
+    .select('*')
+    .then(res => {
+      window.pendingTechs = res.data || [];
+      renderApprovals();   // your existing renderer
+    })
+    .catch(err => console.error("Approvals error:", err));
+}
+
+// Make it global for inline onclick handlers
+window.loadApprovals = loadApprovals;
