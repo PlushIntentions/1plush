@@ -1088,6 +1088,26 @@ window.openAssignModal = function(jobId, jobTitle) {
   alert("Assign modal coming soon for job " + jobTitle);
 };
 
+   function saveAssignment() {
+  const jobId = document.getElementById('assign-job-id').value;
+  const techId = document.getElementById('assign-tech-select').value;
+
+  sb.from('jobs')
+    .update({ technician_id: techId })
+    .eq('id', jobId)
+    .then(({ error }) => {
+      if (error) {
+        console.error("Assignment Error:", error);
+        alert("Error assigning technician");
+        return;
+      }
+
+      closeAssignModal();   // hide modal
+      loadJobs();           // refresh allJobs + UI
+      loadWorkOrders();     // refresh work orders panel
+    });
+}
+
 // ── Global Work Order Actions ────────────────────────────────
 window.viewDocuments = function(jobId) {
   console.log("View Documents for:", jobId);
@@ -1260,25 +1280,7 @@ function loadAdminJobRequests() {
     })
     .catch(err => console.error("Admin Job Requests Error:", err));
 
-   function saveAssignment() {
-  const jobId = document.getElementById('assign-job-id').value;
-  const techId = document.getElementById('assign-tech-select').value;
 
-  sb.from('jobs')
-    .update({ technician_id: techId })
-    .eq('id', jobId)
-    .then(({ error }) => {
-      if (error) {
-        console.error("Assignment Error:", error);
-        alert("Error assigning technician");
-        return;
-      }
 
-      closeAssignModal();   // hide modal
-      loadJobs();           // refresh allJobs + UI
-      loadWorkOrders();     // refresh work orders panel
-    });
-}
 
-}
 
