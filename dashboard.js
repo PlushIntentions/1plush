@@ -1151,7 +1151,7 @@ window.showUnassignButton = function(jobId) {
 };
 
 if (allJobs.technician_id === null) {
-  showAssignButton(job.id);
+  showAssignButton(allJobs.id);
 } else {
-  showUnassignButton(job.id);
+  showUnassignButton(allJobs.id);
 }
