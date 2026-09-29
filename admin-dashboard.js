@@ -252,17 +252,6 @@ async function rejectRequest(jobId) {
   showToast("All requests rejected.");
   loadAdminRequests();
 }
-.job-section {
-  margin-top: 12px;
-}
-
-.job-box {
-  background: #f5f5f5;
-  padding: 10px;
-  border-radius: 8px;
-  margin-top: 6px;
-  white-space: pre-wrap;
-}
 
 .job-tech-list {
   padding-left: 20px;
