@@ -371,28 +371,15 @@
       <option value="">Choose technician…</option>
     </select>
     <div class="modal-btns">
-      <button class="modal-cancel" onclick="closeModal('assign-modal')">Cancel</button>
-      <button class="modal-confirm" onclick="confirmAssign()">Assign Job</button>
+      <button class="modal-cancel" onclick="closeAssignModal()">Cancel</button>
+      <button class="modal-confirm" onclick="saveAssignment()">Assign Job</button>
+
     </div>
   </div>
 </div>
 
 
-  <div id="documents-modal" class="modal">
-  <div class="modal-content">
-    <h2>Documents</h2>
-    <div id="documents-list"></div>
-    <button onclick="closeDocumentsModal()">Close</button>
-  </div>
-</div>
 
-<div id="messages-modal" class="modal">
-  <div class="modal-content">
-    <h2>Messages</h2>
-    <div id="messages-list"></div>
-    <button onclick="closeMessagesModal()">Close</button>
-  </div>
-</div>
 
   
 
