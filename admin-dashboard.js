@@ -127,7 +127,7 @@ async function loadAdminRequests() {
       title,
       scheduled_date,
       scheduled_time,
-      requested_by,
+      requested_by_list,
       request_status,
       clients ( name, address )
     `)
@@ -156,7 +156,9 @@ function renderAdminRequests(jobs) {
     const card = document.createElement("div");
     card.className = "job-card";
 
-    const techList = job.requested_by.map(id => `<li>${id}</li>`).join("");
+    const techList = (job.requested_by_list || [])
+      .map(id => `<li>${id}</li>`)
+      .join("");
 
     card.innerHTML = `
       <h3>${job.title}</h3>
@@ -170,7 +172,9 @@ function renderAdminRequests(jobs) {
 
       <label>Select Technician:</label>
       <select id="approve-${job.id}">
-        ${job.requested_by.map(id => `<option value="${id}">${id}</option>`).join("")}
+        ${(job.requested_by_list || [])
+          .map(id => `<option value="${id}">${id}</option>`)
+          .join("")}
       </select>
 
       <button onclick="approveRequest('${job.id}')">Approve</button>
@@ -196,27 +200,24 @@ function showPanel(panelId) {
 async function approveRequest(jobId) {
   const techId = document.getElementById(`approve-${jobId}`).value;
 
-  // Assign job
   const { error } = await sb
     .from("jobs")
     .update({
       technician_id: techId,
       request_status: "approved",
-      requested_by: [],
+      requested_by_list: [],
       status: "assigned"
     })
     .eq("id", jobId);
 
   if (error) throw error;
 
-  // Fetch technician email
   const { data: techProfile } = await sb
     .from("technicians")
     .select("email")
     .eq("id", techId)
     .maybeSingle();
 
-  // Send notification
   await fetch("https://admin.plushintentions.work/api/send-approval-email", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -232,12 +233,13 @@ async function approveRequest(jobId) {
 }
 
 
+
 async function rejectRequest(jobId) {
   const { error } = await sb
     .from("jobs")
     .update({
       request_status: "none",
-      requested_by: []
+      requested_by_list: []
     })
     .eq("id", jobId);
 
