@@ -949,3 +949,58 @@ async function closeJob(jobId) {
   }
 }
 
+function workOrderCard(j) {
+  var clientName = (j.clients && j.clients.name) ? j.clients.name : 'No Client';
+  var techName   = (j.technicians && j.technicians.full_name) ? j.technicians.full_name : 'Unassigned';
+  var statusCls  = 'status-' + (j.status || 'pending');
+  var priCls     = 'pri-' + (j.priority || 'low');
+
+  var requestedTechs = (j.requested_by_list || [])
+    .map(id => '<li>' + esc(id) + '</li>')
+    .join('');
+
+  return '' +
+    '<div class="workorder-card-wide">' +
+
+      '<h3 class="wo-title">' + esc(j.title || 'Untitled') + '</h3>' +
+
+      '<div class="wo-row">' +
+        '<p><strong>Client:</strong> ' + esc(clientName) + '</p>' +
+        '<p><strong>Address:</strong> ' + esc(j.clients?.address || 'N/A') + '</p>' +
+      '</div>' +
+
+      '<div class="wo-row">' +
+        '<p><strong>Status:</strong> ' + esc(j.status || 'N/A') + '</p>' +
+        '<p><strong>Priority:</strong> ' + esc(j.priority || 'normal') + '</p>' +
+      '</div>' +
+
+      '<div class="wo-row">' +
+        '<p><strong>Scheduled:</strong> ' + esc(j.scheduled_date || 'N/A') +
+        (j.scheduled_time ? ' @ ' + esc(j.scheduled_time) : '') +
+        '</p>' +
+      '</div>' +
+
+      '<div class="wo-section">' +
+        '<strong>Description:</strong>' +
+        '<div class="wo-box">' + esc(j.description || 'No description provided.') + '</div>' +
+      '</div>' +
+
+      '<div class="wo-section">' +
+        '<strong>Notes:</strong>' +
+        '<div class="wo-box">' + esc(j.notes || 'No notes added.') + '</div>' +
+      '</div>' +
+
+      '<div class="wo-section">' +
+        '<strong>Requested By Technicians:</strong>' +
+        '<ul class="wo-tech-list">' + requestedTechs + '</ul>' +
+      '</div>' +
+
+      '<div class="wo-actions">' +
+        '<button onclick="viewDocuments(\'' + j.id + '\')">Documents</button>' +
+        '<button onclick="viewMessages(\'' + j.id + '\')">Messages</button>' +
+        '<button onclick="openAssignModal(\'' + j.id + '\',\'' + esc(j.title) + '\')">Assign</button>' +
+        '<button onclick="unassignJobUI(\'' + j.id + '\')">Unassign</button>' +
+      '</div>' +
+
+    '</div>';
+}
