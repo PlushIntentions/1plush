@@ -1,4 +1,4 @@
-load/* ============================================================
+/* ============================================================
    dashboard.js — Plush Intentions Admin Dashboard
    RULE: loader MUST be hidden SYNCHRONOUSLY before any await/async
    ============================================================ */
