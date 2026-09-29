@@ -133,6 +133,7 @@ function loadAllData() {
   loadTechs();
   loadClients();
   loadInfractions();
+  loadPendingTechs();
 }
 window.loadAllData = loadAllData;
 window.allTechs = [];
@@ -319,6 +320,13 @@ function techCard(t) {
       '<button class="btn-sm btn-outline" onclick="openResetPwModal(\'' + t.id + '\',\'' + esc(t.full_name) + '\')">Reset PW</button>' +
     '</div>' +
   '</div>';
+}
+
+function loadPendingTechs() {
+  sb.from('pending_technicians').select('*').then(res => {
+    window.pendingTechs = res.data || [];
+    renderApprovals();
+  });
 }
 
 // ── Approvals ──────────────────────────────────────────────────
