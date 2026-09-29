@@ -1113,8 +1113,8 @@ window.openAssignModal = function(jobId, jobTitle) {
 };
 window.populateTechSelects = function() {
   // Find ALL dropdowns that should contain technicians
-  var selects = document.querySelectorAll('.tech-select');
-  if (!selects.length) return;
+  var sel = document.querySelectorAll('.tech-select');
+  if (!sel.length) return;
 
   // Build the options
   var options = window.allTechs.map(function(t) {
@@ -1122,7 +1122,7 @@ window.populateTechSelects = function() {
   }).join('');
 
   // Insert into every dropdown
-  selects.forEach(function(sel) {
+  sel.forEach(function(sel) {
     sel.innerHTML = options;
   });
 };
