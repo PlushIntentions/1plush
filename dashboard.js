@@ -1103,4 +1103,12 @@ window.openAssignModal = function(jobId, jobTitle) {
   console.log("Assign modal opened for:", jobId, jobTitle);
   alert("Assign modal coming soon for job " + jobTitle);
 };
+window.populateTechSelects = function() {
+  var sel = document.getElementById('assign-tech-select');
+  if (!sel) return;
+
+  sel.innerHTML = window.allTechs
+    .map(t => '<option value="' + t.id + '">' + esc(t.full_name) + '</option>')
+    .join('');
+};
 
