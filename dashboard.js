@@ -171,23 +171,65 @@ function jobCard(j) {
   var techName   = (j.technicians && j.technicians.full_name) ? j.technicians.full_name : 'Unassigned';
   var statusCls  = 'status-' + (j.status || 'pending');
   var priCls     = 'pri-' + (j.priority || 'low');
-  return '<div class="job-card glass">' +
-    '<div class="job-card-header">' +
-      '<span class="job-title">' + esc(j.title || 'Untitled') + '</span>' +
-      '<span class="badge ' + statusCls + '">' + esc(j.status || 'pending') + '</span>' +
-    '</div>' +
-    '<div class="job-meta">' +
-      '<span><i data-feather="user"></i> ' + esc(clientName) + '</span>' +
-      '<span><i data-feather="tool"></i> ' + esc(techName) + '</span>' +
-      '<span class="badge ' + priCls + '">' + esc(j.priority || 'low') + '</span>' +
-    '</div>' +
-    (j.scheduled_date ? '<div class="job-date"><i data-feather="calendar"></i> ' +
-      esc(j.scheduled_date) + (j.scheduled_time ? ' @ ' + esc(j.scheduled_time) : '') + '</div>' : '') +
-    '<div class="job-actions">' +
-      '<button class="btn-sm btn-pink" onclick="openAssignModal(\'' + j.id + '\',\'' + esc(j.title) + '\')">Assign</button>' +
-    '</div>' +
-  '</div>';
+
+  var requestedTechs = (j.requested_by_list || [])
+    .map(id => '<li>' + esc(id) + '</li>')
+    .join('');
+
+  return `
+    <div class="job-card glass">
+
+      <!-- HEADER -->
+      <div class="job-card-header">
+        <span class="job-title">${esc(j.title || 'Untitled')}</span>
+        <span class="badge ${statusCls}">${esc(j.status || 'pending')}</span>
+      </div>
+
+      <!-- META -->
+      <div class="job-meta">
+        <span><i data-feather="user"></i> ${esc(clientName)}</span>
+        <span><i data-feather="tool"></i> ${esc(techName)}</span>
+        <span class="badge ${priCls}">${esc(j.priority || 'low')}</span>
+      </div>
+
+      <!-- SCHEDULE -->
+      ${j.scheduled_date ? `
+        <div class="job-date">
+          <i data-feather="calendar"></i> ${esc(j.scheduled_date)}
+          ${j.scheduled_time ? ' @ ' + esc(j.scheduled_time) : ''}
+        </div>
+      ` : ''}
+
+      <!-- DESCRIPTION -->
+      <div class="job-section">
+        <strong>Description:</strong>
+        <div class="job-box">${esc(j.description || 'No description provided.')}</div>
+      </div>
+
+      <!-- NOTES -->
+      <div class="job-section">
+        <strong>Notes:</strong>
+        <div class="job-box">${esc(j.notes || 'No notes added.')}</div>
+      </div>
+
+      <!-- REQUESTED TECHNICIANS -->
+      <div class="job-section">
+        <strong>Requested By Technicians:</strong>
+        <ul class="job-tech-list">${requestedTechs}</ul>
+      </div>
+
+      <!-- ACTIONS -->
+      <div class="job-actions">
+        <button class="btn-sm btn-blue" onclick="viewDocuments('${j.id}')">Documents</button>
+        <button class="btn-sm btn-blue" onclick="viewMessages('${j.id}')">Messages</button>
+        <button class="btn-sm btn-pink" onclick="openAssignModal('${j.id}','${esc(j.title)}')">Assign</button>
+        <button class="btn-sm btn-gray" onclick="unassignJobUI('${j.id}')">Unassign</button>
+      </div>
+
+    </div>
+  `;
 }
+
 
 // ── Technicians ────────────────────────────────────────────────
 function loadTechs() {
