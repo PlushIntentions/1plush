@@ -750,6 +750,17 @@ body::before {
   border-radius: 6px;
   cursor: pointer;
 }
+.job-section {
+  margin-top: 12px;
+}
+
+.job-box {
+  background: #f5f5f5;
+  padding: 10px;
+  border-radius: 8px;
+  margin-top: 6px;
+  white-space: pre-wrap;
+}
 
 .wo-actions button:hover {
   background: #005fcc;
