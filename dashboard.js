@@ -903,11 +903,6 @@ function esc(str) {
 }
 
 
-if (allJobs.technician_id === null) {
-  showAssignButton(job.id);
-} else {
-  showUnassignButton(job.id);
-}
 
 async function loadPendingRequests() {
   try {
@@ -1155,3 +1150,8 @@ window.showUnassignButton = function(jobId) {
   `;
 };
 
+if (allJobs.technician_id === null) {
+  showAssignButton(job.id);
+} else {
+  showUnassignButton(job.id);
+}
