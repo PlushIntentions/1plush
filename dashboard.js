@@ -611,13 +611,15 @@ function populateClientSelect() {
 // ══════════════════════════════════════════════════════════════
 //  ASSIGN MODAL
 // ══════════════════════════════════════════════════════════════
-function openAssignModal(jobId, jobTitle) {
-  currentAssignJobId = jobId;
-  var titleEl = document.getElementById('modal-job-title');
-  if (titleEl) titleEl.textContent = jobTitle || 'Job';
-  openModal('assign-modal');
-}
-window.openAssignModal = openAssignModal;
+window.openAssignModal = function(jobId, jobTitle) {
+  document.getElementById('assign-job-id').value = jobId;
+  document.getElementById('assign-job-title').textContent = jobTitle;
+
+  populateTechSelects(); // fills dropdown
+
+  document.getElementById('assign-modal').classList.add('open');
+};
+
 
 function confirmAssign() {
   var sel = document.getElementById('modal-tech-select');
