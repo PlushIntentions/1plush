@@ -1411,4 +1411,53 @@ window.closeMessagesModal = function() {
   if (modal) modal.classList.remove('open');
 };
 
+window.viewDocuments = function(jobId) {
+  const job = allJobs.find(j => j.id === jobId);
+  if (!job) return;
+
+  const modal = document.getElementById('documents-modal');
+  const list  = document.getElementById('documents-list');
+
+  list.innerHTML = (job.documents || []).length === 0
+    ? '<p>No documents uploaded.</p>'
+    : job.documents.map(doc => `
+        <div class="doc-item">
+          <span>${esc(doc.name)}</span>
+          <a href="${doc.url}" target="_blank">Open</a>
+        </div>
+      `).join('');
+
+  modal.classList.add('open');
+};
+
+window.closeDocumentsModal = function() {
+  const modal = document.getElementById('documents-modal');
+  if (modal) modal.classList.remove('open');
+};
+
+window.viewMessages = function(jobId) {
+  const job = allJobs.find(j => j.id === jobId);
+  if (!job) return;
+
+  const modal = document.getElementById('messages-modal');
+  const list  = document.getElementById('messages-list');
+
+  list.innerHTML = (job.messages || []).length === 0
+    ? '<p>No messages.</p>'
+    : job.messages.map(msg => `
+        <div class="msg-item">
+          <strong>${esc(msg.sender)}</strong>
+          <p>${esc(msg.text)}</p>
+          <span>${esc(msg.timestamp)}</span>
+        </div>
+      `).join('');
+
+  modal.classList.add('open');
+};
+
+window.closeMessagesModal = function() {
+  const modal = document.getElementById('messages-modal');
+  if (modal) modal.classList.remove('open');
+};
+
 
