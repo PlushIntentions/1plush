@@ -1401,16 +1401,6 @@ function renderAdminJobRequests(requests = []) {
 
 
 
-window.closeDocumentsModal = function() {
-  const modal = document.getElementById('documents-modal');
-  if (modal) modal.classList.remove('open');
-};
-
-window.closeMessagesModal = function() {
-  const modal = document.getElementById('messages-modal');
-  if (modal) modal.classList.remove('open');
-};
-
 window.viewDocuments = function(jobId) {
   const job = allJobs.find(j => j.id === jobId);
   if (!job) return;
@@ -1431,9 +1421,9 @@ window.viewDocuments = function(jobId) {
 };
 
 window.closeDocumentsModal = function() {
-  const modal = document.getElementById('documents-modal');
-  if (modal) modal.classList.remove('open');
+  document.getElementById('documents-modal').classList.remove('open');
 };
+
 
 window.viewMessages = function(jobId) {
   const job = allJobs.find(j => j.id === jobId);
@@ -1456,9 +1446,9 @@ window.viewMessages = function(jobId) {
 };
 
 window.closeMessagesModal = function() {
-  const modal = document.getElementById('messages-modal');
-  if (modal) modal.classList.remove('open');
+  document.getElementById('messages-modal').classList.remove('open');
 };
+
 
 window.closeAssignModal = closeAssignModal;
 window.saveAssignment   = saveAssignment;
