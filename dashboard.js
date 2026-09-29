@@ -1460,4 +1460,10 @@ window.closeMessagesModal = function() {
   if (modal) modal.classList.remove('open');
 };
 
+window.closeAssignModal = closeAssignModal;
+window.saveAssignment   = saveAssignment;
+window.viewDocuments    = viewDocuments;
+window.closeDocumentsModal = closeDocumentsModal;
+window.viewMessages     = viewMessages;
+window.closeMessagesModal = closeMessagesModal;
 
