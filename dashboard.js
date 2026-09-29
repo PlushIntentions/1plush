@@ -1359,5 +1359,14 @@ function loadAdminJobRequests() {
 
 
 
+window.closeDocumentsModal = function() {
+  const modal = document.getElementById('documents-modal');
+  if (modal) modal.classList.remove('open');
+};
+
+window.closeMessagesModal = function() {
+  const modal = document.getElementById('messages-modal');
+  if (modal) modal.classList.remove('open');
+};
 
 
