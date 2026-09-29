@@ -1127,7 +1127,6 @@ window.populateTechSelects = function() {
   });
 };
 
-};
 function loadPendingTechs() {
   sb.from('pending_technicians').select('*').then(res => {
     window.pendingTechs = res.data || [];
