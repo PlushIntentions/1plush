@@ -161,7 +161,8 @@ function renderJobs() {
   if (allGrid)       allGrid.innerHTML       = allJobs.map(jobCard).join('');
   if (pendingGrid)   pendingGrid.innerHTML   = pending.map(jobCard).join('');
   if (completedGrid) completedGrid.innerHTML = completed.map(jobCard).join('');
-  if (woGrid)        woGrid.innerHTML        = allJobs.map(jobCard).join('');
+  if (woGrid) woGrid.innerHTML = allJobs.map(workOrderCard).join('');
+
 
   if (window.feather) feather.replace();
 }
