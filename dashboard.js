@@ -233,50 +233,51 @@ function workOrderCard(j) {
     .join('');
 
   return '' +
-    '<div class="workorder-card-wide">' +
+    '<div class="workorder-card glass">' +
 
-      '<h3 class="wo-title">' + esc(j.title || 'Untitled') + '</h3>' +
-
-      '<div class="wo-row">' +
-        '<p><strong>Client:</strong> ' + esc(clientName) + '</p>' +
-        '<p><strong>Address:</strong> ' + esc(j.clients?.address || 'N/A') + '</p>' +
+      '<div class="job-card-header">' +
+        '<span class="job-title">' + esc(j.title || 'Untitled') + '</span>' +
+        '<span class="badge ' + statusCls + '">' + esc(j.status || 'pending') + '</span>' +
       '</div>' +
 
-      '<div class="wo-row">' +
-        '<p><strong>Status:</strong> ' + esc(j.status || 'N/A') + '</p>' +
-        '<p><strong>Priority:</strong> ' + esc(j.priority || 'normal') + '</p>' +
+      '<div class="job-meta">' +
+        '<span><i data-feather="user"></i> ' + esc(clientName) + '</span>' +
+        '<span><i data-feather="tool"></i> ' + esc(techName) + '</span>' +
+        '<span class="badge ' + priCls + '">' + esc(j.priority || 'low') + '</span>' +
       '</div>' +
 
-      '<div class="wo-row">' +
-        '<p><strong>Scheduled:</strong> ' + esc(j.scheduled_date || 'N/A') +
+      (j.scheduled_date ? (
+        '<div class="job-date"><i data-feather="calendar"></i> ' +
+        esc(j.scheduled_date) +
         (j.scheduled_time ? ' @ ' + esc(j.scheduled_time) : '') +
-        '</p>' +
-      '</div>' +
+        '</div>'
+      ) : '') +
 
-      '<div class="wo-section">' +
+      '<div class="job-section">' +
         '<strong>Description:</strong>' +
-        '<div class="wo-box">' + esc(j.description || 'No description provided.') + '</div>' +
+        '<div class="job-box">' + esc(j.description || 'No description provided.') + '</div>' +
       '</div>' +
 
-      '<div class="wo-section">' +
+      '<div class="job-section">' +
         '<strong>Notes:</strong>' +
-        '<div class="wo-box">' + esc(j.notes || 'No notes added.') + '</div>' +
+        '<div class="job-box">' + esc(j.notes || 'No notes added.') + '</div>' +
       '</div>' +
 
-      '<div class="wo-section">' +
+      '<div class="job-section">' +
         '<strong>Requested By Technicians:</strong>' +
-        '<ul class="wo-tech-list">' + requestedTechs + '</ul>' +
+        '<ul class="job-tech-list">' + requestedTechs + '</ul>' +
       '</div>' +
 
-      '<div class="wo-actions">' +
-        '<button onclick="viewDocuments(\'' + j.id + '\')">Documents</button>' +
-        '<button onclick="viewMessages(\'' + j.id + '\')">Messages</button>' +
-        '<button onclick="openAssignModal(\'' + j.id + '\',\'' + esc(j.title) + '\')">Assign</button>' +
-        '<button onclick="unassignJobUI(\'' + j.id + '\')">Unassign</button>' +
+      '<div class="job-actions">' +
+        '<button class="btn-sm btn-blue" onclick="viewDocuments(\'' + j.id + '\')">Documents</button>' +
+        '<button class="btn-sm btn-blue" onclick="viewMessages(\'' + j.id + '\')">Messages</button>' +
+        '<button class="btn-sm btn-pink" onclick="openAssignModal(\'' + j.id + '\',\'' + esc(j.title) + '\')">Assign</button>' +
+        '<button class="btn-sm btn-gray" onclick="unassignJobUI(\'' + j.id + '\')">Unassign</button>' +
       '</div>' +
 
     '</div>';
 }
+
 
 
 // ── Technicians ────────────────────────────────────────────────
