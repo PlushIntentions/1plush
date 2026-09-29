@@ -1243,11 +1243,6 @@ window.showUnassignButton = function(jobId) {
   `;
 };
 
-if (allJobs.technician_id === null) {
-  showAssignButton(allJobs.id);
-} else {
-  showUnassignButton(allJobs.id);
-} 
 
 
 // ===== GLOBAL EXPORTS FOR INLINE HTML HANDLERS =====
