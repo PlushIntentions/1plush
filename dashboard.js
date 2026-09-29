@@ -1248,4 +1248,16 @@ function renderWorkOrders() {
   // Render each work order using your wide card renderer
   woGrid.innerHTML = allJobs.map(workOrderCard).join('');
 }
+function loadAdminJobRequests() {
+  console.log("Loading admin job requests...");
+
+  sb.from('jobs')
+    .select('*, clients(name), technicians!jobs_technician_id_fkey(full_name)')
+    .eq('status', 'pending_admin')   // jobs waiting for admin approval
+    .then(res => {
+      window.adminJobRequests = res.data || [];
+      renderAdminJobRequests();      // your renderer
+    })
+    .catch(err => console.error("Admin Job Requests Error:", err));
+}
 
