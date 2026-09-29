@@ -216,46 +216,9 @@
   
   <h3 class="wo-title">{{title}}</h3>
 
-  <div class="wo-row">
-    <p><strong>Client:</strong> {{client_name}}</p>
-    <p><strong>Address:</strong> {{client_address}}</p>
-  </div>
-
-  <div class="wo-row">
-    <p><strong>Status:</strong> {{status}}</p>
-    <p><strong>Priority:</strong> {{priority}}</p>
-  </div>
-
-  <div class="wo-row">
-    <p><strong>Scheduled:</strong> {{scheduled_date}} @ {{scheduled_time}}</p>
-  </div>
-
-  <div class="wo-block">
-    <p><strong>Description:</strong></p>
-    <p class="wo-box">{{description}}</p>
-  </div>
-
-  <div class="wo-block">
-    <p><strong>Notes:</strong></p>
-    <p class="wo-box">{{notes}}</p>
-  </div>
-
-  <div class="wo-block">
-    <p><strong>Requested By Technicians:</strong></p>
-    <ul class="wo-tech-list">
-      {{requested_by_list}}
-    </ul>
-  </div>
-
-  <div class="wo-actions">
-    <button onclick="viewDocuments('{{id}}')">View Documents</button>
-    <button onclick="viewMessages('{{id}}')">View Messages</button>
-    <button onclick="assignJobUI('{{id}}')">Assign</button>
-    <button onclick="unassignJobUI('{{id}}')">Unassign</button>
-  </div>
-
+  <div class="card-grid" id="workorders-grid">
+  <div class="empty-state"><i data-feather="file-text"></i><p>No work orders</p></div>
 </div>
-
 
 
   
