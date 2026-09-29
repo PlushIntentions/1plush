@@ -1133,4 +1133,25 @@ function loadPendingTechs() {
     renderApprovals();
   });
 }
+window.showAssignButton = function(jobId) {
+  const container = document.getElementById(`actions-${jobId}`);
+  if (!container) return;
+
+  container.innerHTML = `
+    <button class="btn-sm btn-primary" onclick="openAssignModal('${jobId}')">
+      Assign
+    </button>
+  `;
+};
+
+window.showUnassignButton = function(jobId) {
+  const container = document.getElementById(`actions-${jobId}`);
+  if (!container) return;
+
+  container.innerHTML = `
+    <button class="btn-sm btn-danger" onclick="unassignJobUI('${jobId}')">
+      Unassign
+    </button>
+  `;
+};
 
