@@ -1125,5 +1125,4 @@ function loadPendingTechs() {
     renderApprovals();
   });
 }
-loadPendingTechs();
-}
+
