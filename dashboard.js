@@ -1343,14 +1343,42 @@ function loadAdminJobRequests() {
 
   sb.from('jobs')
     .select('*, clients(name), technicians!jobs_technician_id_fkey(full_name)')
-    .eq('status', 'pending_admin')   // jobs waiting for admin approval
+    .eq('status', 'pending_admin')
     .then(res => {
-      window.adminJobRequests = res.data || [];
-      renderAdminJobRequests();      // your renderer
+      const data = res.data || [];
+      window.adminJobRequests = data;
+      renderAdminJobRequests(data);   // ← FIXED
     })
     .catch(err => console.error("Admin Job Requests Error:", err));
-   0
 }
+function renderAdminJobRequests(requests = []) {
+  const grid = document.getElementById('admin-job-requests-grid');
+  if (!grid) return;
+
+  if (!Array.isArray(requests) || requests.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <i data-feather="inbox"></i>
+        <p>No job requests</p>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = requests.map(job => `
+    <div class="job-request-card glass">
+      <h3>${esc(job.title || "Untitled Job")}</h3>
+      <p><strong>Client:</strong> ${esc(job.clients?.name || "Unknown")}</p>
+      <p><strong>Description:</strong> ${esc(job.description || "No description")}</p>
+
+      <div class="actions">
+        <button onclick="approveJobRequest('${job.id}')">Approve</button>
+        <button onclick="rejectJobRequest('${job.id}')">Reject</button>
+      </div>
+    </div>
+  `).join('');
+}
+
 
 
 
