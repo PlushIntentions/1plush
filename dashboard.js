@@ -286,7 +286,7 @@ function workOrderCard(j) {
 function loadTechs() {
   sb.from('technicians').select('*').then(function (res) {
     if (res.error) { console.error('techs:', res.error); return; }
-    allTechs = res.data || [];
+    window.allTechs = res.data || [];
     renderTechs();
     renderApprovals();
     renderUserMgmt();
