@@ -1157,6 +1157,8 @@ if (allJobs.technician_id === null) {
 } else {
   showUnassignButton(allJobs.id);
 } 
+
+
 // ===== GLOBAL EXPORTS FOR INLINE HTML HANDLERS =====
 
 // Panels
@@ -1197,3 +1199,18 @@ window.showUnassignButton = showUnassignButton;
 // Utility
 window.esc = esc;
 
+function loadWorkOrders() {
+  console.log("Loading work orders...");
+
+  sb.from('jobs')
+    .select('*, technicians!jobs_technician_id_fkey(full_name)')
+    .eq('type', 'workorder') // only work orders
+    .then(res => {
+      window.allJobs = res.data || [];
+
+      renderWorkOrders(); // your existing renderer
+    })
+    .catch(err => {
+      console.error("Work Orders Load Error:", err);
+    });
+}
