@@ -791,4 +791,7 @@ body::before {
 .job-tech-list {
   padding-left: 20px;
 }
+.workorder-card * {
+  color: #000 !important;
+}
 
