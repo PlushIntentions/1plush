@@ -1289,6 +1289,10 @@ window.showUnassignButton = showUnassignButton;
 
 // Utility
 window.esc = esc;
+window.closeAssignModal = closeAssignModal;
+window.closeDocumentsModal = closeDocumentsModal;
+window.closeMessagesModal = closeMessagesModal;
+
 
 function loadWorkOrders() {
   console.log("Loading work orders...");
