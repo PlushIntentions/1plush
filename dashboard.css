@@ -698,7 +698,8 @@ body::before {
 
 .workorder-card-wide {
   width: 100%;
-  background: #fff;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(10px);
   padding: 20px;
   margin: 20px 0;
   border-radius: 12px;
