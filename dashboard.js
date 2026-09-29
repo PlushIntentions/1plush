@@ -1101,7 +1101,14 @@ window.openAssignModal = function(jobId, jobTitle) {
         alert("Error assigning technician");
         return;
       }
+function closeAssignModal() {
+  const modal = document.getElementById('assign-modal');
+  if (modal) {
+    modal.classList.remove('open');
+  }
+}
 
+       
       closeAssignModal();   // hide modal
       loadJobs();           // refresh allJobs + UI
       loadWorkOrders();     // refresh work orders panel
