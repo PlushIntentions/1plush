@@ -1279,6 +1279,8 @@ function loadAdminJobRequests() {
       renderAdminJobRequests();      // your renderer
     })
     .catch(err => console.error("Admin Job Requests Error:", err));
+   0
+}
 
 
 
