@@ -135,6 +135,8 @@ function loadAllData() {
   loadInfractions();
 }
 window.loadAllData = loadAllData;
+window.allTechs = [];
+
 
 // ── Jobs ───────────────────────────────────────────────────────
 function loadJobs() {
