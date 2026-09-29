@@ -1111,4 +1111,10 @@ window.populateTechSelects = function() {
     .map(t => '<option value="' + t.id + '">' + esc(t.full_name) + '</option>')
     .join('');
 };
+function loadPendingTechs() {
+  sb.from('pending_technicians').select('*').then(res => {
+    window.pendingTechs = res.data || [];
+    renderApprovals();
+  });
+}
 
