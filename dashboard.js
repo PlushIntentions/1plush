@@ -1363,7 +1363,7 @@ function loadAdminJobRequests() {
   console.log("Loading admin job requests...");
 
   sb.from('jobs')
-    .select('*, clients(name), technicians!jobs_technician_id_fkey(full_name)')
+    .select('*, technicians(full_name)')
     .eq('status', 'pending_admin')
     .then(res => {
       const data = res.data || [];
