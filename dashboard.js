@@ -1312,17 +1312,19 @@ function loadWorkOrders() {
   console.log("Loading work orders...");
 
   sb.from('jobs')
-    .select('*, technicians!jobs_technician_id_fkey(full_name)')
-    .eq('type', 'workorder') // only work orders
+    .select('*, technicians(full_name)')
+    .eq('type', 'workorder')
     .then(res => {
       window.allJobs = res.data || [];
-
-      renderWorkOrders(); // your existing renderer
+      renderWorkOrders();
     })
     .catch(err => {
       console.error("Work Orders Load Error:", err);
     });
 }
+
+window.loadWorkOrders = loadWorkOrders;
+
 function loadApprovals() {
   console.log("Loading approvals...");
 
